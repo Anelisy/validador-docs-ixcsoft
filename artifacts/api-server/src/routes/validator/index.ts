@@ -4,45 +4,59 @@ import { ai } from "@workspace/integrations-gemini-ai";
 
 const router: IRouter = Router();
 
-const SYSTEM_CONTEXT = `Você é um especialista em documentação técnica para sistemas ERP (IXC Soft). Seu papel é transformar insumos técnicos em documentação semântica, detalhada e reutilizável, pronta para colar no Outline.
+const SYSTEM_CONTEXT = `Você é um especialista em documentação técnica para sistemas ERP (IXC Soft). Seu papel é transformar insumos técnicos em documentação semântica detalhada e reutilizável, pronta para o Outline.
 
-Regras de comportamento:
+Regras:
 - Inferir o módulo quando não vier explicitamente e declarar a inferência
-- Não inventar nomes de tabelas, funções, endpoints, campos ou integrações; quando faltarem evidências, usar "não informado", "não especificado" ou "(inferência)"
-- Priorizar explicação de regra de negócio e impacto sistêmico antes de repetir o texto do card
-- Traduzir linguagem de desenvolvimento para linguagem de documentação técnica sem perder precisão
-- Manter tom profissional, técnico e descritivo (o texto será consumido por IA futuramente)
-- NÃO incluir prefácio conversacional, metacomentários ou introduções`;
+- Não inventar nomes de tabelas, funções, endpoints ou campos sem evidência; usar "não informado" ou "(inferência)"
+- Priorizar regra de negócio e impacto sistêmico
+- Tom profissional, técnico e descritivo (texto será consumido por IA)
+- SEM prefácio conversacional ou metacomentários`;
 
-const DOC_STRUCTURE = `A documentação deve seguir SEMPRE esta estrutura em markdown, nesta ordem:
+const DOC_SECTIONS = `
 # [Título descritivo]
 
 ## Contexto do módulo
-[1-3 parágrafos explicando qual problema de negócio a funcionalidade atende]
+[1-3 parágrafos explicando o problema de negócio que a funcionalidade atende]
 
 ## Objetivo de negócio
-[Bullets curtos: dor/necessidade, comportamento esperado, resultado percebido pelo usuário]
+- [dor ou necessidade]
+- [comportamento esperado do sistema]
+- [resultado percebido pelo usuário]
 
 ## Mapeamento de regras de negócio
-[Passos numerados: gatilho, validações, decisão, persistência, retorno visual, exceções]
+1. [Gatilho]
+2. [Validações]
+3. [Decisão e processamento]
+4. [Persistência]
+5. [Retorno visual]
+6. [Exceções e bloqueios]
 
 ## Dicionário de interface e campos
 | Nome do campo | Tipo | Descrição | Regra/Opções |
 |---|---|---|---|
-[Tipos permitidos: Texto, Data, Número, Booleano, Seleção, Arquivo, Tabela, Oculto, Não informado]
+| campo_exemplo | Texto | Descrição do campo | Obrigatório |
+
+(Tipos: Texto, Data, Número, Booleano, Seleção, Arquivo, Tabela, Oculto, Não informado)
 
 ## Análise de impacto (developer view)
-[Funções/rotinas afetadas, tabelas com leitura/escrita, pontos de quebra, impactos em navegação/permissões/integrações]
+- Funções/rotinas afetadas: [lista]
+- Tabelas com leitura/escrita: [lista]
+- Pontos de quebra com input inesperado: [lista]
+- Impactos em navegação/permissões/integrações: [lista]
 
 ## Histórico de mudança
 | Aspecto | O que era | O que é agora | Impacto direto para o usuário |
 |---|---|---|---|
 
 ## Integrações e APIs
-[Sistemas externos citados ou inferíveis; se não houver: "não há integração externa evidenciada no insumo"]
+[Sistemas externos citados; se não houver: "Não há integração externa evidenciada no insumo"]
 
 ## Critérios de atenção, riscos e validações
-[Checklist: validações obrigatórias, riscos de regressão, dependências implícitas, cenários de teste]`;
+- [ ] [validação obrigatória]
+- [ ] [risco de regressão]
+- [ ] [dependência implícita]
+- [ ] [cenário de teste recomendado]`;
 
 const WIKI_BASE_URL = "https://wiki-erp.ixcsoft.com.br/documentacao/";
 
@@ -55,7 +69,6 @@ async function searchWiki(query: string): Promise<Array<{title: string, url: str
     });
     if (!res.ok) return [];
     const html = await res.text();
-
     const matches: Array<{title: string, url: string, relevance: string, action: string}> = [];
     const linkRegex = /<a[^>]+href="(https?:\/\/[^"]*documentacao[^"]*)"[^>]*>([^<]{5,120})<\/a>/gi;
     let match;
@@ -67,12 +80,7 @@ async function searchWiki(query: string): Promise<Array<{title: string, url: str
         const queryWords = query.toLowerCase().split(" ").filter(w => w.length > 3);
         const titleLower = title.toLowerCase();
         const relevance = queryWords.some(w => titleLower.includes(w)) ? "high" : "medium";
-        matches.push({
-          title,
-          url: href,
-          relevance,
-          action: "Verificar se esta página precisa ser atualizada com as novas informações",
-        });
+        matches.push({ title, url: href, relevance, action: "Verificar se esta página precisa ser atualizada" });
         count++;
       }
     }
@@ -82,28 +90,49 @@ async function searchWiki(query: string): Promise<Array<{title: string, url: str
   }
 }
 
-async function callGeminiJson<T>(prompt: string): Promise<T> {
+async function generateText(prompt: string): Promise<string> {
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: {
-      maxOutputTokens: 8192,
-      responseMimeType: "application/json",
-    },
+    config: { maxOutputTokens: 8192 },
   });
-  const text = response.text ?? "{}";
-  return JSON.parse(text) as T;
+  return response.text ?? "";
+}
+
+function extractJsonFromText(text: string): unknown {
+  const cleaned = text
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/, "")
+    .trim();
+  return JSON.parse(cleaned);
 }
 
 router.post("/validate", async (req, res) => {
   const parsed = ValidateDocBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Corpo inválido", details: parsed.error });
+    res.status(400).json({ error: "Corpo inválido" });
     return;
   }
   const { documentation, module } = parsed.data;
 
   try {
+    // Call 1: compact JSON with metadata only (score, suggestions, fields, keywords)
+    const analysisPrompt = `${SYSTEM_CONTEXT}
+
+Módulo informado: ${module ?? "não informado"}
+
+Documentação a analisar:
+---
+${documentation}
+---
+
+Retorne APENAS um JSON válido (sem markdown, sem \`\`\`), com esta estrutura exata:
+{"isValid":true,"score":75,"inferredModule":"Financeiro","suggestions":[{"type":"warning","section":"Contexto do módulo","message":"Falta descrição do problema de negócio","suggestion":"Adicionar 1-3 parágrafos explicando o contexto"}],"missingFields":["Histórico de mudança","Critérios de atenção"],"extractedFields":[{"fieldName":"data_vencimento","tableName":"faturas","module":"Financeiro","description":"Data de vencimento da fatura do cliente","fieldType":"Data"}],"wikiKeywords":["financeiro","fatura","vencimento"]}
+
+Mantenha os arrays curtos (máx 5 itens cada). Sem texto antes ou depois do JSON.`;
+
+    const analysisText = await generateText(analysisPrompt);
+
     type AnalysisResult = {
       isValid: boolean;
       score: number;
@@ -114,49 +143,39 @@ router.post("/validate", async (req, res) => {
       wikiKeywords: string[];
     };
 
-    const analysisPrompt = `${SYSTEM_CONTEXT}
+    let analysis: AnalysisResult;
+    try {
+      analysis = extractJsonFromText(analysisText) as AnalysisResult;
+    } catch {
+      analysis = {
+        isValid: false,
+        score: 0,
+        inferredModule: module ?? "Não identificado",
+        suggestions: [{ type: "error", section: "Geral", message: "Não foi possível analisar a documentação completamente" }],
+        missingFields: [],
+        extractedFields: [],
+        wikiKeywords: [module ?? "documentacao"],
+      };
+    }
 
-Módulo informado: ${module ?? "não informado"}
-
-Documentação a validar:
----
-${documentation}
----
-
-Analise esta documentação e retorne um objeto JSON com exatamente estes campos:
-{
-  "isValid": boolean (true se a doc está bem estruturada e completa),
-  "score": number de 0 a 100 (qualidade geral),
-  "inferredModule": string (módulo do sistema identificado),
-  "suggestions": array de objetos com { "type": "error"|"warning"|"info", "section": string, "message": string, "suggestion": string },
-  "missingFields": array de strings (seções ou informações ausentes),
-  "extractedFields": array de objetos com { "fieldName": string, "tableName": string, "module": string, "description": string, "fieldType": string },
-  "wikiKeywords": array de strings (3-5 palavras-chave para buscar na wiki do produto)
-}`;
-
-    const analysis = await callGeminiJson<AnalysisResult>(analysisPrompt);
-
-    type FormatResult = { formattedDoc: string };
+    // Call 2: plain text formatted doc — NO JSON wrapping, avoids truncation issue
     const formatPrompt = `${SYSTEM_CONTEXT}
-
-${DOC_STRUCTURE}
 
 Módulo: ${analysis.inferredModule ?? module ?? "não informado"}
 
-Documentação original a reformatar:
+Documentação original:
 ---
 ${documentation}
 ---
 
-Retorne um objeto JSON com exatamente um campo:
-{
-  "formattedDoc": string (a documentação reformatada integralmente seguindo a estrutura acima, em markdown)
-}`;
+Reescreva e melhore esta documentação seguindo EXATAMENTE este modelo de seções:
+${DOC_SECTIONS}
 
-    const formatResult = await callGeminiJson<FormatResult>(formatPrompt);
+Retorne APENAS o markdown da documentação, sem JSON, sem explicações adicionais.`;
 
-    const wikiKeywords = analysis.wikiKeywords ?? [module ?? "documentacao"];
-    const wikiQuery = wikiKeywords.slice(0, 3).join(" ");
+    const formattedDoc = await generateText(formatPrompt);
+
+    const wikiQuery = (analysis.wikiKeywords ?? [module ?? "documentacao"]).slice(0, 3).join(" ");
     const wikiMatches = await searchWiki(wikiQuery);
 
     res.json({
@@ -166,7 +185,7 @@ Retorne um objeto JSON com exatamente um campo:
       missingFields: analysis.missingFields ?? [],
       wikiMatches,
       extractedFields: analysis.extractedFields ?? [],
-      formattedDoc: formatResult.formattedDoc ?? null,
+      formattedDoc: formattedDoc.trim() || null,
     });
   } catch (err) {
     req.log.error({ err }, "Error validating doc");
@@ -177,48 +196,70 @@ Retorne um objeto JSON com exatamente um campo:
 router.post("/generate", async (req, res) => {
   const parsed = GenerateDocBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Corpo inválido", details: parsed.error });
+    res.status(400).json({ error: "Corpo inválido" });
     return;
   }
   const { cardContent, module } = parsed.data;
 
   try {
-    type GenerateResult = {
-      documentation: string;
+    // Call 1: compact JSON metadata — fields + keywords only
+    const metaPrompt = `${SYSTEM_CONTEXT}
+
+Módulo informado: ${module ?? "não informado (infira do conteúdo)"}
+
+Card/resolução do dev:
+---
+${cardContent}
+---
+
+Retorne APENAS um JSON válido (sem markdown, sem \`\`\`), com esta estrutura exata:
+{"inferredModule":"Financeiro","extractedFields":[{"fieldName":"data_vencimento","tableName":"faturas","module":"Financeiro","description":"Data de vencimento da fatura do cliente","fieldType":"Data"}],"wikiKeywords":["financeiro","fatura"]}
+
+Mantenha extractedFields com máx 10 itens. Sem texto antes ou depois do JSON.`;
+
+    const metaText = await generateText(metaPrompt);
+
+    type MetaResult = {
       inferredModule: string;
       extractedFields: Array<{ fieldName: string; tableName: string; module: string; description?: string; fieldType?: string }>;
       wikiKeywords: string[];
     };
 
-    const prompt = `${SYSTEM_CONTEXT}
+    let meta: MetaResult;
+    try {
+      meta = extractJsonFromText(metaText) as MetaResult;
+    } catch {
+      meta = {
+        inferredModule: module ?? "Não identificado",
+        extractedFields: [],
+        wikiKeywords: [module ?? "documentacao"],
+      };
+    }
 
-${DOC_STRUCTURE}
+    // Call 2: plain text documentation — NO JSON, avoids truncation
+    const docPrompt = `${SYSTEM_CONTEXT}
 
-Módulo informado: ${module ?? "não informado (infira a partir do conteúdo)"}
+Módulo: ${meta.inferredModule ?? module ?? "não informado"}
 
-Conteúdo do card/resolução do dev:
+Card/resolução do dev:
 ---
 ${cardContent}
 ---
 
-Gere a documentação completa seguindo a estrutura acima e retorne um objeto JSON com exatamente estes campos:
-{
-  "documentation": string (documentação completa em markdown pronta para colar no Outline),
-  "inferredModule": string (módulo do sistema identificado),
-  "extractedFields": array de objetos com { "fieldName": string, "tableName": string, "module": string, "description": string, "fieldType": string },
-  "wikiKeywords": array de strings (3-5 palavras-chave para buscar na wiki)
-}`;
+Gere a documentação técnica completa seguindo EXATAMENTE este modelo de seções:
+${DOC_SECTIONS}
 
-    const result = await callGeminiJson<GenerateResult>(prompt);
+Retorne APENAS o markdown da documentação, sem JSON, sem explicações adicionais.`;
 
-    const wikiKeywords = result.wikiKeywords ?? [module ?? "documentacao"];
-    const wikiQuery = wikiKeywords.slice(0, 3).join(" ");
+    const documentation = await generateText(docPrompt);
+
+    const wikiQuery = (meta.wikiKeywords ?? [module ?? "documentacao"]).slice(0, 3).join(" ");
     const wikiMatches = await searchWiki(wikiQuery);
 
     res.json({
-      documentation: result.documentation ?? "",
-      inferredModule: result.inferredModule ?? module ?? "Não identificado",
-      extractedFields: result.extractedFields ?? [],
+      documentation: documentation.trim(),
+      inferredModule: meta.inferredModule ?? module ?? "Não identificado",
+      extractedFields: meta.extractedFields ?? [],
       wikiMatches,
     });
   } catch (err) {
