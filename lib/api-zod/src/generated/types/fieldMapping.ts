@@ -10,6 +10,7 @@ export interface FieldMapping {
   id: number;
   fieldName: string;
   tableName: string;
+  sectionName?: string;
   module: string;
   description?: string;
   fieldType?: string;

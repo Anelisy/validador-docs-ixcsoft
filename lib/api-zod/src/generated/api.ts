@@ -220,6 +220,7 @@ export const ListFieldsResponse = zod.array(ListFieldsResponseItem);
 export const CreateFieldBody = zod.object({
   fieldName: zod.string(),
   tableName: zod.string(),
+  sectionName: zod.string().optional(),
   module: zod.string(),
   description: zod.string().optional(),
   fieldType: zod.string().optional(),

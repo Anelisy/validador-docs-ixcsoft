@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   ReactFlow,
   Controls,
@@ -9,11 +9,14 @@ import {
   Handle,
   Position,
   MiniMap,
+  useReactFlow,
+  ReactFlowProvider,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { toPng } from "html-to-image";
 
 import { useListFields, useCreateField, useDeleteField } from "@workspace/api-client-react";
-import { Network, Plus, Trash2, Search, LayoutGrid, CheckSquare, Square, Filter } from "lucide-react";
+import { Network, Plus, Trash2, Search, LayoutGrid, CheckSquare, Square, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -41,6 +44,14 @@ const TabNode = ({ data }: { data: Record<string, unknown> }) => (
   </div>
 );
 
+const SectionNode = ({ data }: { data: Record<string, unknown> }) => (
+  <div className="px-3 py-1.5 rounded-lg border border-amber-400/50 bg-amber-400/10 backdrop-blur-md shadow-sm min-w-[100px] text-center">
+    <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+    <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
+    <div className="text-[11px] font-medium text-amber-300 tracking-wide">{data.label as string}</div>
+  </div>
+);
+
 const FieldNode = ({ data }: { data: Record<string, unknown> }) => (
   <div className="rounded-lg border border-border/60 bg-card/90 backdrop-blur-md shadow px-3 py-2 text-left">
     <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
@@ -51,27 +62,44 @@ const FieldNode = ({ data }: { data: Record<string, unknown> }) => (
   </div>
 );
 
-const nodeTypes = { module: ModuleNode, tab: TabNode, field: FieldNode };
+const nodeTypes = { module: ModuleNode, tab: TabNode, section: SectionNode, field: FieldNode };
 
 // ──────────────────────────────────────────────
-// Layout builder: Módulo > Aba > Campo
+// Layout builder: Módulo > Aba > Seção? > Campo
 // ──────────────────────────────────────────────
-function buildTreeLayout(
-  fields: Array<{ id: number; fieldName: string; tableName: string; module: string; description?: string | null; fieldType?: string | null }>
-) {
+type FieldItem = {
+  id: number;
+  fieldName: string;
+  tableName: string;
+  sectionName?: string | null;
+  module: string;
+  description?: string | null;
+  fieldType?: string | null;
+};
+
+function buildTreeLayout(fields: FieldItem[]) {
   const FIELD_W = 170;
   const FIELD_GAP = 16;
-  const TAB_GAP = 24;
+  const SEC_GAP = 20;
+  const TAB_GAP = 28;
   const MODULE_GAP = 60;
   const LEVEL_H = 110;
 
-  // Group: module → tab → fields
-  const tree = new Map<string, Map<string, typeof fields>>();
+  // Group: module → aba → section → fields
+  type SectionMap = Map<string, FieldItem[]>;
+  type AbaMap = Map<string, SectionMap>;
+  type ModuleMap = Map<string, AbaMap>;
+
+  const tree: ModuleMap = new Map();
   for (const f of fields) {
     if (!tree.has(f.module)) tree.set(f.module, new Map());
-    const tabs = tree.get(f.module)!;
-    if (!tabs.has(f.tableName)) tabs.set(f.tableName, []);
-    tabs.get(f.tableName)!.push(f);
+    const abas = tree.get(f.module)!;
+    if (!abas.has(f.tableName)) abas.set(f.tableName, new Map());
+    const sections = abas.get(f.tableName)!;
+    // Use sectionName if present, else "_" (no section bucket)
+    const secKey = f.sectionName?.trim() || "_";
+    if (!sections.has(secKey)) sections.set(secKey, []);
+    sections.get(secKey)!.push(f);
   }
 
   const nodes: Array<{id: string; type: string; position: {x: number; y: number}; data: Record<string, unknown>}> = [];
@@ -80,14 +108,22 @@ function buildTreeLayout(
   const edgeStyle = { stroke: "hsl(var(--primary))", strokeWidth: 1.5, opacity: 0.5 };
   const marker = { type: MarkerType.ArrowClosed, color: "hsl(var(--primary))" };
 
+  /** Compute pixel width of an aba's sub-tree */
+  function abaWidth(sections: SectionMap): number {
+    let w = 0;
+    for (const sFields of sections.values()) {
+      w += sFields.length * (FIELD_W + FIELD_GAP) - FIELD_GAP + SEC_GAP;
+    }
+    return Math.max(w - SEC_GAP, FIELD_W);
+  }
+
   let moduleX = 0;
   const moduleY = 0;
 
-  for (const [moduleName, tabs] of tree) {
-    // Calculate total width of this module's sub-tree
+  for (const [moduleName, abas] of tree) {
     let moduleWidth = 0;
-    for (const tabFields of tabs.values()) {
-      moduleWidth += tabFields.length * (FIELD_W + FIELD_GAP) - FIELD_GAP + TAB_GAP;
+    for (const sections of abas.values()) {
+      moduleWidth += abaWidth(sections) + TAB_GAP;
     }
     moduleWidth = Math.max(moduleWidth - TAB_GAP, FIELD_W);
 
@@ -97,39 +133,98 @@ function buildTreeLayout(
       id: moduleId,
       type: "module",
       position: { x: moduleCenterX - 70, y: moduleY },
-      data: { label: moduleName, count: [...tabs.values()].flat().length },
+      data: { label: moduleName, count: [...abas.values()].flatMap(s => [...s.values()]).flat().length },
     });
 
-    let tabX = moduleX;
-    const tabY = moduleY + LEVEL_H;
+    let abaX = moduleX;
+    const abaY = moduleY + LEVEL_H;
 
-    for (const [tabName, tabFields] of tabs) {
-      const tabWidth = tabFields.length * (FIELD_W + FIELD_GAP) - FIELD_GAP;
-      const tabCenterX = tabX + Math.max(tabWidth, FIELD_W) / 2;
+    for (const [tabName, sections] of abas) {
+      const aw = abaWidth(sections);
+      const abaCenterX = abaX + aw / 2;
       const tabId = `tab-${moduleName}-${tabName}`;
 
       nodes.push({
         id: tabId,
         type: "tab",
-        position: { x: tabCenterX - 60, y: tabY },
+        position: { x: abaCenterX - 60, y: abaY },
         data: { label: tabName },
       });
       edges.push({ id: `e-${moduleId}-${tabId}`, source: moduleId, target: tabId, animated: true, style: edgeStyle, markerEnd: marker });
 
-      const fieldY = tabY + LEVEL_H;
-      tabFields.forEach((f, fi) => {
-        const fieldX = tabX + fi * (FIELD_W + FIELD_GAP);
-        const fieldId = `field-${f.id}`;
-        nodes.push({
-          id: fieldId,
-          type: "field",
-          position: { x: fieldX, y: fieldY },
-          data: { label: f.fieldName, tableName: f.tableName, fieldType: f.fieldType ?? undefined, description: f.description ?? undefined },
-        });
-        edges.push({ id: `e-${tabId}-${fieldId}`, source: tabId, target: fieldId, animated: false, style: edgeStyle, markerEnd: marker });
-      });
+      // Check if there are multiple sections (any real section name beyond "_")
+      const sectionKeys = Array.from(sections.keys());
+      const hasRealSections = sectionKeys.some(k => k !== "_");
 
-      tabX += Math.max(tabWidth, FIELD_W) + TAB_GAP;
+      let secX = abaX;
+      const sectionY = abaY + LEVEL_H;
+      const fieldYFlat = abaY + LEVEL_H; // used when no sections
+
+      if (!hasRealSections) {
+        // Flat: Aba → Campo directly
+        const allFields = sections.get("_") ?? [];
+        allFields.forEach((f, fi) => {
+          const fieldX = abaX + fi * (FIELD_W + FIELD_GAP);
+          const fieldId = `field-${f.id}`;
+          nodes.push({
+            id: fieldId,
+            type: "field",
+            position: { x: fieldX, y: fieldYFlat },
+            data: { label: f.fieldName, tableName: f.tableName, fieldType: f.fieldType ?? undefined, description: f.description ?? undefined },
+          });
+          edges.push({ id: `e-${tabId}-${fieldId}`, source: tabId, target: fieldId, animated: false, style: edgeStyle, markerEnd: marker });
+        });
+      } else {
+        // 4-level: Aba → Seção → Campo
+        for (const [secKey, secFields] of sections) {
+          const secWidth = secFields.length * (FIELD_W + FIELD_GAP) - FIELD_GAP;
+          const secCenterX = secX + Math.max(secWidth, FIELD_W) / 2;
+
+          let secId: string;
+          if (secKey === "_") {
+            // Fields with no section connect directly to the aba
+            secFields.forEach((f, fi) => {
+              const fieldX = secX + fi * (FIELD_W + FIELD_GAP);
+              const fieldId = `field-${f.id}`;
+              nodes.push({
+                id: fieldId,
+                type: "field",
+                position: { x: fieldX, y: sectionY + LEVEL_H },
+                data: { label: f.fieldName, tableName: f.tableName, fieldType: f.fieldType ?? undefined, description: f.description ?? undefined },
+              });
+              edges.push({ id: `e-${tabId}-${fieldId}`, source: tabId, target: fieldId, animated: false, style: edgeStyle, markerEnd: marker });
+            });
+            secX += Math.max(secWidth, FIELD_W) + SEC_GAP;
+            continue;
+          }
+
+          secId = `sec-${moduleName}-${tabName}-${secKey}`;
+          nodes.push({
+            id: secId,
+            type: "section",
+            position: { x: secCenterX - 50, y: sectionY },
+            data: { label: secKey },
+          });
+          edges.push({ id: `e-${tabId}-${secId}`, source: tabId, target: secId, animated: true, style: { ...edgeStyle, strokeDasharray: "4 2" }, markerEnd: marker });
+
+          const fieldY = sectionY + LEVEL_H;
+          secFields.forEach((f, fi) => {
+            const fieldX = secX + fi * (FIELD_W + FIELD_GAP);
+            const fieldId = `field-${f.id}`;
+            nodes.push({
+              id: fieldId,
+              type: "field",
+              position: { x: fieldX, y: fieldY },
+              data: { label: f.fieldName, tableName: f.tableName, fieldType: f.fieldType ?? undefined, description: f.description ?? undefined },
+            });
+            edges.push({ id: `e-${secId}-${fieldId}`, source: secId, target: fieldId, animated: false, style: edgeStyle, markerEnd: marker });
+          });
+
+          secX += Math.max(secWidth, FIELD_W) + SEC_GAP;
+        }
+      }
+
+      abaX += aw + TAB_GAP;
     }
 
     moduleX += moduleWidth + MODULE_GAP;
@@ -139,9 +234,67 @@ function buildTreeLayout(
 }
 
 // ──────────────────────────────────────────────
-// Main Component
+// PNG Export helper (uses html-to-image)
 // ──────────────────────────────────────────────
-export default function MindmapPage() {
+function ExportPngButton() {
+  const { getNodes } = useReactFlow();
+  const { toast } = useToast();
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    const flowEl = document.querySelector(".react-flow") as HTMLElement | null;
+    if (!flowEl) return;
+
+    const nodesList = getNodes();
+    if (nodesList.length === 0) {
+      toast({ title: "Mapa vazio", description: "Selecione campos antes de exportar.", variant: "destructive" });
+      return;
+    }
+
+    setExporting(true);
+    try {
+      const dataUrl = await toPng(flowEl, {
+        backgroundColor: "#0f0f11",
+        quality: 1,
+        pixelRatio: 2,
+        filter: (node) => {
+          // exclude minimap and controls from export
+          if (node.classList?.contains("react-flow__minimap")) return false;
+          if (node.classList?.contains("react-flow__controls")) return false;
+          return true;
+        },
+      });
+      const link = document.createElement("a");
+      link.download = `mapa-campos-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+      toast({ title: "PNG exportado", description: "Imagem salva — pronta para colar no Outline." });
+    } catch (err) {
+      toast({ title: "Erro ao exportar", description: "Tente novamente.", variant: "destructive" });
+      console.error(err);
+    } finally {
+      setExporting(false);
+    }
+  }, [getNodes, toast]);
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="h-8 rounded-lg gap-1.5 text-xs"
+      onClick={handleExport}
+      disabled={exporting}
+    >
+      <Download className="w-3.5 h-3.5" />
+      {exporting ? "Exportando..." : "Exportar PNG"}
+    </Button>
+  );
+}
+
+// ──────────────────────────────────────────────
+// Inner component (needs ReactFlowProvider context)
+// ──────────────────────────────────────────────
+function MindmapInner() {
   const { data: fieldsList, isLoading } = useListFields();
   const createFieldMutation = useCreateField();
   const deleteFieldMutation = useDeleteField();
@@ -152,65 +305,56 @@ export default function MindmapPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterModule, setFilterModule] = useState("Todos");
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [newField, setNewField] = useState({ fieldName: "", tableName: "", module: "", description: "", fieldType: "" });
+  const [newField, setNewField] = useState({
+    fieldName: "",
+    tableName: "",
+    sectionName: "",
+    module: "",
+    description: "",
+    fieldType: "",
+  });
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // All unique modules for filter
   const allModules = useMemo(() => {
     const mods = new Set((fieldsList ?? []).map(f => f.module));
     return ["Todos", ...Array.from(mods).sort()];
   }, [fieldsList]);
 
-  // Filtered list for sidebar
   const filteredFields = useMemo(() => {
     return (fieldsList ?? []).filter(f => {
       const matchesSearch =
         f.fieldName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         f.tableName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (f.sectionName ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         f.module.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesMod = filterModule === "Todos" || f.module === filterModule;
       return matchesSearch && matchesMod;
     });
   }, [fieldsList, searchTerm, filterModule]);
 
-  // Select all visible
   const toggleAll = useCallback(() => {
     const allVisible = filteredFields.map(f => f.id);
     const allSelected = allVisible.every(id => selectedIds.has(id));
     if (allSelected) {
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        allVisible.forEach(id => next.delete(id));
-        return next;
-      });
+      setSelectedIds(prev => { const n = new Set(prev); allVisible.forEach(id => n.delete(id)); return n; });
     } else {
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        allVisible.forEach(id => next.add(id));
-        return next;
-      });
+      setSelectedIds(prev => { const n = new Set(prev); allVisible.forEach(id => n.add(id)); return n; });
     }
   }, [filteredFields, selectedIds]);
 
   const toggleField = useCallback((id: number) => {
     setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
     });
   }, []);
 
-  // Rebuild graph whenever selection changes
   useEffect(() => {
     const selected = (fieldsList ?? []).filter(f => selectedIds.has(f.id));
-    if (selected.length === 0) {
-      setNodes([]);
-      setEdges([]);
-      return;
-    }
+    if (selected.length === 0) { setNodes([]); setEdges([]); return; }
     const { nodes: n, edges: e } = buildTreeLayout(selected);
     setNodes(n as Parameters<typeof setNodes>[0]);
     setEdges(e as Parameters<typeof setEdges>[0]);
@@ -222,12 +366,15 @@ export default function MindmapPage() {
       return;
     }
     try {
-      const created = await createFieldMutation.mutateAsync({ data: newField });
+      const payload = {
+        ...newField,
+        sectionName: newField.sectionName || undefined,
+      };
+      const created = await createFieldMutation.mutateAsync({ data: payload });
       toast({ title: "Campo adicionado", description: `${newField.fieldName} salvo com sucesso.` });
       setIsAddOpen(false);
-      setNewField({ fieldName: "", tableName: "", module: "", description: "", fieldType: "" });
+      setNewField({ fieldName: "", tableName: "", sectionName: "", module: "", description: "", fieldType: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/fields"] });
-      // Auto-select newly created field
       if (created?.id) setSelectedIds(prev => new Set([...prev, created.id]));
     } catch {
       toast({ title: "Erro", description: "Falha ao criar campo.", variant: "destructive" });
@@ -276,15 +423,17 @@ export default function MindmapPage() {
             <MiniMap
               nodeColor={(n) =>
                 n.type === "module" ? "hsl(var(--primary))" :
-                n.type === "tab" ? "#10b981" : "hsl(var(--card))"
+                n.type === "tab" ? "#10b981" :
+                n.type === "section" ? "#f59e0b" :
+                "hsl(var(--card))"
               }
               className="bg-card/80 border border-border rounded-xl overflow-hidden"
             />
           </ReactFlow>
         )}
 
-        {/* Legend */}
-        <div className="absolute bottom-4 left-4 flex gap-3 z-10">
+        {/* Legend + Export */}
+        <div className="absolute bottom-4 left-4 flex gap-2 z-10 flex-wrap items-center">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card/80 backdrop-blur px-3 py-1.5 rounded-full border border-border/50">
             <span className="w-3 h-3 rounded-sm bg-primary/60 border border-primary inline-block" /> Módulo
           </span>
@@ -292,8 +441,12 @@ export default function MindmapPage() {
             <span className="w-3 h-3 rounded-sm bg-emerald-500/30 border border-emerald-500/60 inline-block" /> Aba
           </span>
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card/80 backdrop-blur px-3 py-1.5 rounded-full border border-border/50">
+            <span className="w-3 h-3 rounded-sm bg-amber-400/20 border border-amber-400/50 inline-block" /> Seção
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card/80 backdrop-blur px-3 py-1.5 rounded-full border border-border/50">
             <span className="w-3 h-3 rounded-sm bg-card border border-border inline-block" /> Campo
           </span>
+          <ExportPngButton />
         </div>
       </div>
 
@@ -323,12 +476,16 @@ export default function MindmapPage() {
                     <Input value={newField.fieldName} onChange={e => setNewField({ ...newField, fieldName: e.target.value })} placeholder="ex: valor_baixado" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Aba * <span className="text-muted-foreground font-normal">(seção/tela onde aparece)</span></Label>
+                    <Label className="text-xs">Módulo *</Label>
+                    <Input value={newField.module} onChange={e => setNewField({ ...newField, module: e.target.value })} placeholder="ex: Financeiro" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Aba * <span className="text-muted-foreground font-normal">(tela/seção principal)</span></Label>
                     <Input value={newField.tableName} onChange={e => setNewField({ ...newField, tableName: e.target.value })} placeholder="ex: Recebimentos" />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Módulo *</Label>
-                    <Input value={newField.module} onChange={e => setNewField({ ...newField, module: e.target.value })} placeholder="ex: Financeiro" />
+                    <Label className="text-xs">Seção <span className="text-muted-foreground font-normal">(opcional — sub-grupo dentro da aba)</span></Label>
+                    <Input value={newField.sectionName} onChange={e => setNewField({ ...newField, sectionName: e.target.value })} placeholder="ex: Dados Bancários" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Descrição</Label>
@@ -352,7 +509,7 @@ export default function MindmapPage() {
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar campos ou abas..."
+              placeholder="Buscar campos, abas ou seções..."
               className="pl-9 h-8 text-xs bg-background/50"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -417,29 +574,27 @@ export default function MindmapPage() {
                   }`}
                 >
                   <div className="flex items-start gap-2.5">
-                    {/* Checkbox */}
                     <div className="mt-0.5 flex-shrink-0">
                       {isSelected
                         ? <CheckSquare className="w-4 h-4 text-primary" />
                         : <Square className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground" />
                       }
                     </div>
-
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                         <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-primary/30 text-primary">
                           {field.module}
                         </Badge>
                         <span className="text-[10px] text-emerald-400 font-medium">{field.tableName}</span>
+                        {field.sectionName && (
+                          <span className="text-[10px] text-amber-400/80 font-medium">› {field.sectionName}</span>
+                        )}
                       </div>
                       <div className="font-mono text-xs font-semibold truncate">{field.fieldName}</div>
                       {field.description && (
                         <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">{field.description}</p>
                       )}
                     </div>
-
-                    {/* Delete */}
                     <button
                       onClick={e => { e.stopPropagation(); handleDelete(field.id); }}
                       className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded transition-all flex-shrink-0"
@@ -453,11 +608,22 @@ export default function MindmapPage() {
           )}
         </div>
 
-        {/* Footer hint */}
         <div className="px-4 py-3 border-t border-border/30 text-[11px] text-muted-foreground/50 text-center flex-shrink-0">
-          Clique em um campo para adicionar/remover do mapa
+          Mapa compartilhado — alimentado por todos os usuários
         </div>
       </div>
     </div>
+  );
+}
+
+// ──────────────────────────────────────────────
+// Exported page wrapped with ReactFlowProvider
+// (required for useReactFlow inside ExportPngButton)
+// ──────────────────────────────────────────────
+export default function MindmapPage() {
+  return (
+    <ReactFlowProvider>
+      <MindmapInner />
+    </ReactFlowProvider>
   );
 }

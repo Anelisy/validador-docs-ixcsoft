@@ -93,7 +93,7 @@ async function searchWiki(query: string): Promise<Array<{title: string, url: str
   }
 }
 
-type RawField = { fieldName: string; tableName: string; module: string; description?: string; fieldType?: string };
+type RawField = { fieldName: string; tableName: string; sectionName?: string; module: string; description?: string; fieldType?: string };
 
 async function autoSaveFields(fields: RawField[]): Promise<number> {
   if (!fields.length) return 0;
@@ -109,6 +109,7 @@ async function autoSaveFields(fields: RawField[]): Promise<number> {
       await db.insert(fieldsTable).values({
         fieldName: f.fieldName,
         tableName: f.tableName,
+        sectionName: f.sectionName ?? null,
         module: f.module,
         description: f.description ?? null,
         fieldType: f.fieldType ?? null,
@@ -156,15 +157,15 @@ ${documentation}
 ---
 
 REGRAS PARA extractedFields — leia com atenção:
-- "tableName" = nome da ABA/SEÇÃO do sistema onde o campo aparece (ex: "Recebimentos", "Cadastro de Cliente", "Dados Fiscais")
-- A documentação da central de ajuda SEMPRE traz o nome da aba explicitamente como título de seção ou cabeçalho de grupo de campos — use ESSE nome
-- NÃO use nomes de tabelas de banco de dados (ex: "clientes", "faturas") como tableName — use o nome da tela/aba conforme aparece na interface
-- Se o documento listar campos sob um título como "Aba Recebimentos" ou "## Recebimentos", use "Recebimentos" como tableName
-- Só use "(inferência)" como tableName se absolutamente nenhuma aba ou seção for mencionada no documento
-- "fieldType" = tipo do campo conforme dicionário da interface (Texto, Número, Data, Booleano, Seleção, Arquivo, Moeda, etc.)
+- "tableName" = nome da ABA principal onde o campo aparece na interface (ex: "Recebimentos", "Cadastro de Cliente", "Dados Fiscais")
+- A documentação da central de ajuda organiza os campos por ABA — use o título da aba como "tableName"
+- "sectionName" = nome da sub-seção DENTRO da aba, quando houver (ex: "Dados Bancários", "Informações Adicionais"). Se não houver sub-seção, omita o campo ou deixe null
+- NÃO use nomes de tabelas de banco de dados — use os nomes visuais da interface
+- Só use "(inferência)" como tableName se absolutamente nenhuma aba for mencionada
+- "fieldType" = tipo visual do campo (Texto, Número, Data, Booleano, Seleção, Arquivo, Moeda, etc.)
 
 Retorne APENAS um JSON válido (sem markdown, sem \`\`\`), com esta estrutura exata:
-{"isValid":true,"score":75,"inferredModule":"Financeiro","suggestions":[{"type":"warning","section":"Contexto do módulo","message":"Falta descrição do problema de negócio","suggestion":"Adicionar 1-3 parágrafos explicando o contexto"}],"missingFields":["Histórico de mudança","Critérios de atenção"],"extractedFields":[{"fieldName":"data_vencimento","tableName":"Recebimentos","module":"Financeiro","description":"Data de vencimento da fatura do cliente","fieldType":"Data"}],"wikiKeywords":["financeiro","fatura","vencimento"]}
+{"isValid":true,"score":75,"inferredModule":"Financeiro","suggestions":[{"type":"warning","section":"Contexto do módulo","message":"Falta descrição do problema de negócio","suggestion":"Adicionar 1-3 parágrafos explicando o contexto"}],"missingFields":["Histórico de mudança","Critérios de atenção"],"extractedFields":[{"fieldName":"data_vencimento","tableName":"Recebimentos","sectionName":"Dados Bancários","module":"Financeiro","description":"Data de vencimento da fatura do cliente","fieldType":"Data"}],"wikiKeywords":["financeiro","fatura","vencimento"]}
 
 Mantenha os arrays curtos (máx 5 itens cada). Sem texto antes ou depois do JSON.`;
 
@@ -176,7 +177,7 @@ Mantenha os arrays curtos (máx 5 itens cada). Sem texto antes ou depois do JSON
       inferredModule: string;
       suggestions: Array<{ type: string; section: string; message: string; suggestion?: string }>;
       missingFields: string[];
-      extractedFields: Array<{ fieldName: string; tableName: string; module: string; description?: string; fieldType?: string }>;
+      extractedFields: Array<{ fieldName: string; tableName: string; sectionName?: string; module: string; description?: string; fieldType?: string }>;
       wikiKeywords: string[];
     };
 
@@ -254,15 +255,15 @@ ${cardContent}
 ---
 
 REGRAS PARA extractedFields — leia com atenção:
-- "tableName" = nome da ABA/SEÇÃO/TELA do sistema onde o campo aparece (ex: "Recebimentos", "Cadastro de Cliente", "Dados Fiscais", "Configurações")
-- Procure no texto menções a telas, abas, seções, formulários ou menus — use ESSE nome como tableName
-- NÃO use nomes de tabelas de banco de dados (ex: "clientes", "faturas") — use o nome visual da interface
-- Se o card mencionar "na tela de Recebimentos" ou "aba Financeiro > Recebimentos", use "Recebimentos" como tableName
-- Só use "(inferência)" se absolutamente nenhuma tela ou aba for mencionada
+- "tableName" = nome da ABA principal onde o campo aparece na interface (ex: "Recebimentos", "Cadastro de Cliente", "Dados Fiscais", "Configurações")
+- "sectionName" = nome da sub-seção DENTRO da aba, quando houver (ex: "Dados Bancários", "Informações Adicionais"). Omita se não houver sub-seção
+- Procure no texto menções a telas, abas ou menus — use ESSE nome como tableName
+- NÃO use nomes de tabelas de banco de dados — use os nomes visuais da interface
+- Só use "(inferência)" se absolutamente nenhuma aba for mencionada
 - "fieldType" = tipo visual do campo (Texto, Número, Data, Booleano, Seleção, Moeda, Arquivo, etc.)
 
 Retorne APENAS um JSON válido (sem markdown, sem \`\`\`), com esta estrutura exata:
-{"inferredModule":"Financeiro","extractedFields":[{"fieldName":"data_vencimento","tableName":"Recebimentos","module":"Financeiro","description":"Data de vencimento da fatura do cliente","fieldType":"Data"}],"wikiKeywords":["financeiro","fatura"]}
+{"inferredModule":"Financeiro","extractedFields":[{"fieldName":"data_vencimento","tableName":"Recebimentos","sectionName":"Dados Bancários","module":"Financeiro","description":"Data de vencimento da fatura do cliente","fieldType":"Data"}],"wikiKeywords":["financeiro","fatura"]}
 
 Mantenha extractedFields com máx 10 itens. Sem texto antes ou depois do JSON.`;
 
@@ -270,7 +271,7 @@ Mantenha extractedFields com máx 10 itens. Sem texto antes ou depois do JSON.`;
 
     type MetaResult = {
       inferredModule: string;
-      extractedFields: Array<{ fieldName: string; tableName: string; module: string; description?: string; fieldType?: string }>;
+      extractedFields: Array<{ fieldName: string; tableName: string; sectionName?: string; module: string; description?: string; fieldType?: string }>;
       wikiKeywords: string[];
     };
 

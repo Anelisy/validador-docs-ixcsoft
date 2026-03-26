@@ -9,6 +9,7 @@
 export interface ExtractedField {
   fieldName: string;
   tableName: string;
+  sectionName?: string;
   module: string;
   description?: string;
   fieldType?: string;

@@ -6,6 +6,7 @@ export const fieldsTable = pgTable("field_mappings", {
   id: serial("id").primaryKey(),
   fieldName: text("field_name").notNull(),
   tableName: text("table_name").notNull(),
+  sectionName: text("section_name"),
   module: text("module").notNull(),
   description: text("description"),
   fieldType: text("field_type"),

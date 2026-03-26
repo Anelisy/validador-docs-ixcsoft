@@ -9,6 +9,7 @@
 export interface CreateFieldBody {
   fieldName: string;
   tableName: string;
+  sectionName?: string;
   module: string;
   description?: string;
   fieldType?: string;

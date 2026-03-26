@@ -438,6 +438,9 @@ components:
           type: string
         tableName:
           type: string
+        sectionName:
+          type: string
+          description: Optional sub-section inside the tab (e.g. "Dados Bancários" inside "Recebimentos")
         module:
           type: string
         description:
@@ -509,6 +512,8 @@ components:
           type: string
         tableName:
           type: string
+        sectionName:
+          type: string
         module:
           type: string
         description:
@@ -531,6 +536,8 @@ components:
         fieldName:
           type: string
         tableName:
+          type: string
+        sectionName:
           type: string
         module:
           type: string
