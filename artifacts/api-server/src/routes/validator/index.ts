@@ -1,6 +1,9 @@
 import { Router, type IRouter } from "express";
 import { ValidateDocBody, GenerateDocBody, WikiSearchBody } from "@workspace/api-zod";
 import { ai } from "@workspace/integrations-gemini-ai";
+import { db } from "@workspace/db";
+import { fieldsTable } from "@workspace/db/schema";
+import { and, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -90,6 +93,32 @@ async function searchWiki(query: string): Promise<Array<{title: string, url: str
   }
 }
 
+type RawField = { fieldName: string; tableName: string; module: string; description?: string; fieldType?: string };
+
+async function autoSaveFields(fields: RawField[]): Promise<number> {
+  if (!fields.length) return 0;
+  let saved = 0;
+  for (const f of fields) {
+    if (!f.fieldName || !f.tableName || !f.module) continue;
+    const existing = await db
+      .select({ id: fieldsTable.id })
+      .from(fieldsTable)
+      .where(and(eq(fieldsTable.fieldName, f.fieldName), eq(fieldsTable.tableName, f.tableName), eq(fieldsTable.module, f.module)))
+      .limit(1);
+    if (existing.length === 0) {
+      await db.insert(fieldsTable).values({
+        fieldName: f.fieldName,
+        tableName: f.tableName,
+        module: f.module,
+        description: f.description ?? null,
+        fieldType: f.fieldType ?? null,
+      });
+      saved++;
+    }
+  }
+  return saved;
+}
+
 async function generateText(prompt: string): Promise<string> {
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
@@ -176,7 +205,10 @@ Retorne APENAS o markdown da documentação, sem JSON, sem explicações adicion
     const formattedDoc = await generateText(formatPrompt);
 
     const wikiQuery = (analysis.wikiKeywords ?? [module ?? "documentacao"]).slice(0, 3).join(" ");
-    const wikiMatches = await searchWiki(wikiQuery);
+    const [wikiMatches, savedFieldsCount] = await Promise.all([
+      searchWiki(wikiQuery),
+      autoSaveFields(analysis.extractedFields ?? []),
+    ]);
 
     res.json({
       isValid: analysis.isValid ?? false,
@@ -186,6 +218,7 @@ Retorne APENAS o markdown da documentação, sem JSON, sem explicações adicion
       wikiMatches,
       extractedFields: analysis.extractedFields ?? [],
       formattedDoc: formattedDoc.trim() || null,
+      savedFieldsCount,
     });
   } catch (err) {
     req.log.error({ err }, "Error validating doc");
@@ -254,13 +287,17 @@ Retorne APENAS o markdown da documentação, sem JSON, sem explicações adicion
     const documentation = await generateText(docPrompt);
 
     const wikiQuery = (meta.wikiKeywords ?? [module ?? "documentacao"]).slice(0, 3).join(" ");
-    const wikiMatches = await searchWiki(wikiQuery);
+    const [wikiMatches, savedFieldsCount] = await Promise.all([
+      searchWiki(wikiQuery),
+      autoSaveFields(meta.extractedFields ?? []),
+    ]);
 
     res.json({
       documentation: documentation.trim(),
       inferredModule: meta.inferredModule ?? module ?? "Não identificado",
       extractedFields: meta.extractedFields ?? [],
       wikiMatches,
+      savedFieldsCount,
     });
   } catch (err) {
     req.log.error({ err }, "Error generating doc");

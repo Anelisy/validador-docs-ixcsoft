@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "wouter";
 import { 
   CheckCircle2, 
   Sparkles, 
@@ -7,14 +8,13 @@ import {
   Info, 
   XCircle, 
   Copy, 
-  Save, 
   Search, 
-  ChevronRight,
   Database,
-  ArrowRight
+  Network
 } from "lucide-react";
-import { useValidateDoc, useGenerateDoc, useCreateField } from "@workspace/api-client-react";
-import type { ValidationResult, GeneratedDoc, ExtractedField } from "@workspace/api-client-react/src/generated/api.schemas";
+import { useValidateDoc, useGenerateDoc } from "@workspace/api-client-react";
+import type { ValidationResult, GeneratedDoc } from "@workspace/api-client-react/src/generated/api.schemas";
+import { useQueryClient } from "@tanstack/react-query";
 import { useHistory } from "@/hooks/use-history";
 import { useToast } from "@/hooks/use-toast";
 
@@ -27,7 +27,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MarkdownPreview } from "@/components/markdown-preview";
-import { Progress } from "@/components/ui/progress";
 
 export default function ValidatorPage() {
   const [activeTab, setActiveTab] = useState<"validate" | "generate">("validate");
@@ -43,10 +42,13 @@ export default function ValidatorPage() {
 
   const { toast } = useToast();
   const { addEntry } = useHistory();
+  const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
 
   const validateMutation = useValidateDoc();
   const generateMutation = useGenerateDoc();
-  const createFieldMutation = useCreateField();
+
+  const invalidateFields = () => queryClient.invalidateQueries({ queryKey: ["/api/fields"] });
 
   const handleValidate = async () => {
     if (!docInput.trim()) {
@@ -56,12 +58,10 @@ export default function ValidatorPage() {
 
     try {
       const result = await validateMutation.mutateAsync({
-        data: {
-          documentation: docInput,
-          module: moduleInput || undefined
-        }
+        data: { documentation: docInput, module: moduleInput || undefined }
       });
       setValResult(result);
+      invalidateFields();
       
       addEntry({
         type: "validation",
@@ -70,12 +70,15 @@ export default function ValidatorPage() {
         preview: docInput.substring(0, 100) + "...",
         extractedFieldsCount: result.extractedFields.length
       });
-      
+
+      const saved = (result as any).savedFieldsCount ?? 0;
       toast({
-        title: "Validação Concluída",
-        description: `Score de qualidade: ${result.score}/100`,
+        title: `Validação concluída · Score ${result.score}/100`,
+        description: saved > 0
+          ? `${saved} campo${saved > 1 ? "s" : ""} adicionado${saved > 1 ? "s" : ""} automaticamente ao Mapa de Campos.`
+          : "Nenhum campo novo identificado.",
       });
-    } catch (e) {
+    } catch {
       toast({ title: "Erro", description: "Falha ao validar documentação", variant: "destructive" });
     }
   };
@@ -88,12 +91,10 @@ export default function ValidatorPage() {
 
     try {
       const result = await generateMutation.mutateAsync({
-        data: {
-          cardContent: cardInput,
-          module: moduleInput || undefined
-        }
+        data: { cardContent: cardInput, module: moduleInput || undefined }
       });
       setGenResult(result);
+      invalidateFields();
       
       addEntry({
         type: "generation",
@@ -102,11 +103,14 @@ export default function ValidatorPage() {
         extractedFieldsCount: result.extractedFields.length
       });
 
+      const saved = (result as any).savedFieldsCount ?? 0;
       toast({
-        title: "Documentação Gerada",
-        description: "Pronta para revisão e cópia.",
+        title: "Documentação gerada com sucesso",
+        description: saved > 0
+          ? `${saved} campo${saved > 1 ? "s" : ""} adicionado${saved > 1 ? "s" : ""} automaticamente ao Mapa de Campos.`
+          : "Documentação pronta para revisão.",
       });
-    } catch (e) {
+    } catch {
       toast({ title: "Erro", description: "Falha ao gerar documentação", variant: "destructive" });
     }
   };
@@ -114,29 +118,6 @@ export default function ValidatorPage() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: "Copiado", description: "Texto copiado para a área de transferência." });
-  };
-
-  const handleSaveFields = async (fields: ExtractedField[]) => {
-    if (fields.length === 0) return;
-    
-    try {
-      let savedCount = 0;
-      for (const field of fields) {
-        await createFieldMutation.mutateAsync({
-          data: {
-            fieldName: field.fieldName,
-            tableName: field.tableName,
-            module: field.module,
-            description: field.description,
-            fieldType: field.fieldType
-          }
-        });
-        savedCount++;
-      }
-      toast({ title: "Sucesso", description: `${savedCount} campos salvos no mapa mental.` });
-    } catch (e) {
-      toast({ title: "Erro", description: "Falha ao salvar alguns campos.", variant: "destructive" });
-    }
   };
 
   return (
@@ -267,16 +248,20 @@ export default function ValidatorPage() {
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Campos Identificados</h4>
-                            <Button size="sm" variant="outline" onClick={() => handleSaveFields(valResult.extractedFields)}>
-                              <Save className="w-3 h-3 mr-2" /> Salvar no Mapa
+                            <Button size="sm" variant="ghost" className="gap-1.5 text-primary" onClick={() => navigate("/mindmap")}>
+                              <Network className="w-3.5 h-3.5" /> Ver no Mapa
                             </Button>
+                          </div>
+                          <div className="p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 flex items-center gap-2 text-xs text-emerald-400 mb-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                            Campos salvos automaticamente no Mapa de Campos
                           </div>
                           <div className="grid gap-2">
                             {valResult.extractedFields.map((f, i) => (
                               <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
                                 <div className="flex items-center gap-3">
                                   <Database className="w-4 h-4 text-muted-foreground" />
-                                  <span className="font-mono text-sm">{f.tableName}.{f.fieldName}</span>
+                                  <span className="font-mono text-sm">{f.tableName}.<strong>{f.fieldName}</strong></span>
                                 </div>
                                 <Badge variant="secondary">{f.module}</Badge>
                               </div>
@@ -359,9 +344,11 @@ export default function ValidatorPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" onClick={() => handleSaveFields(genResult.extractedFields)} className="rounded-lg">
-                          <Save className="w-4 h-4 mr-2" /> Campos
-                        </Button>
+                        {genResult.extractedFields.length > 0 && (
+                          <Button size="sm" variant="ghost" className="gap-1.5 text-primary rounded-lg" onClick={() => navigate("/mindmap")}>
+                            <Network className="w-3.5 h-3.5" /> Ver no Mapa
+                          </Button>
+                        )}
                         <Button size="sm" onClick={() => copyToClipboard(genResult.documentation)} className="rounded-lg">
                           <Copy className="w-4 h-4 mr-2" /> Copiar Tudo
                         </Button>
