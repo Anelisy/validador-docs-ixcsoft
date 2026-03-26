@@ -42,14 +42,29 @@ const TabNode = ({ data }: { data: Record<string, unknown> }) => (
 );
 
 const FieldNode = ({ data }: { data: Record<string, unknown> }) => (
-  <div className="px-3 py-2 rounded-lg border border-border bg-card/80 backdrop-blur-md shadow min-w-[110px] text-center group">
+  <div className="rounded-xl border border-border/70 bg-card/90 backdrop-blur-md shadow-md w-[210px] text-left overflow-hidden">
     <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-    <div className="text-xs font-mono font-semibold text-foreground truncate max-w-[130px]">{data.label as string}</div>
-    {data.fieldType && (
-      <div className="text-[10px] text-muted-foreground mt-0.5">{data.fieldType as string}</div>
-    )}
-    {data.description && (
-      <div className="text-[10px] text-muted-foreground/60 mt-0.5 truncate max-w-[130px]">{data.description as string}</div>
+
+    {/* Field name bar */}
+    <div className="px-3 py-2 border-b border-border/40 bg-muted/20 flex items-center justify-between gap-2">
+      <span className="font-mono text-xs font-bold text-foreground truncate">{data.label as string}</span>
+      {data.fieldType && (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 shrink-0 whitespace-nowrap">
+          {data.fieldType as string}
+        </span>
+      )}
+    </div>
+
+    {/* Description */}
+    {data.description ? (
+      <div className="px-3 py-2">
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-1 font-semibold">Descrição</div>
+        <p className="text-[11px] text-muted-foreground leading-snug line-clamp-3">{data.description as string}</p>
+      </div>
+    ) : (
+      <div className="px-3 py-2">
+        <p className="text-[10px] text-muted-foreground/30 italic">Sem descrição</p>
+      </div>
     )}
   </div>
 );
@@ -62,11 +77,11 @@ const nodeTypes = { module: ModuleNode, tab: TabNode, field: FieldNode };
 function buildTreeLayout(
   fields: Array<{ id: number; fieldName: string; tableName: string; module: string; description?: string | null; fieldType?: string | null }>
 ) {
-  const FIELD_W = 160;
-  const FIELD_GAP = 20;
+  const FIELD_W = 220;
+  const FIELD_GAP = 24;
   const TAB_GAP = 30;
   const MODULE_GAP = 80;
-  const LEVEL_H = 110;
+  const LEVEL_H = 130;
 
   // Group: module → tab → fields
   const tree = new Map<string, Map<string, typeof fields>>();
