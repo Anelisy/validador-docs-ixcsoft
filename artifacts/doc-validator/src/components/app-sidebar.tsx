@@ -1,4 +1,4 @@
-import { BookOpenCheck, Network, History, HelpCircle, LogOut, Shield, Users } from "lucide-react";
+import { BookOpenCheck, Network, History, HelpCircle, LogOut, Shield, Users, KeyRound } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -151,6 +151,118 @@ function UsersDialog() {
   );
 }
 
+function ChangePasswordDialog() {
+  const { user, token } = useAuth();
+  const { toast } = useToast();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (next !== confirm) {
+      toast({ title: "As senhas não coincidem.", variant: "destructive" });
+      return;
+    }
+    if (next.length < 6) {
+      toast({ title: "A nova senha deve ter ao menos 6 caracteres.", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const loginRes = await fetch(`${API_BASE()}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user?.email, password: current }),
+      });
+      if (!loginRes.ok) {
+        toast({ title: "Senha atual incorreta.", variant: "destructive" });
+        return;
+      }
+
+      const res = await fetch(`${API_BASE()}/auth/users/${user?.id}/password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: next }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        toast({ title: "Erro", description: d.error, variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Senha alterada com sucesso!" });
+      setCurrent(""); setNext(""); setConfirm("");
+      setOpen(false);
+    } catch {
+      toast({ title: "Erro de conexão.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/50 transition-colors text-sm text-muted-foreground hover:text-foreground w-full">
+          <KeyRound className="w-4 h-4" />
+          <span className="font-medium">Alterar senha</span>
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="w-4 h-4" /> Alterar Senha
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="current-pw">Senha atual</Label>
+            <Input
+              id="current-pw"
+              type="password"
+              placeholder="••••••••"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-pw">Nova senha</Label>
+            <Input
+              id="new-pw"
+              type="password"
+              placeholder="••••••••"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm-pw">Confirmar nova senha</Label>
+            <Input
+              id="confirm-pw"
+              type="password"
+              placeholder="••••••••"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+              minLength={6}
+            />
+          </div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Salvando..." : "Salvar nova senha"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, logout } = useAuth();
@@ -216,6 +328,8 @@ export function AppSidebar() {
           <HelpCircle className="w-4 h-4" />
           <span className="font-medium">Wiki IXC</span>
         </a>
+
+        <ChangePasswordDialog />
 
         {user?.isAdmin && (
           <Dialog>
