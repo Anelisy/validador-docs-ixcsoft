@@ -68,7 +68,8 @@ export default function ValidatorPage() {
         module: moduleInput || "Desconhecido",
         score: result.score,
         preview: docInput.substring(0, 100) + "...",
-        extractedFieldsCount: result.extractedFields.length
+        extractedFieldsCount: result.extractedFields.length,
+        fullContent: result.formattedDoc ?? undefined,
       });
 
       const saved = (result as any).savedFieldsCount ?? 0;
@@ -100,7 +101,8 @@ export default function ValidatorPage() {
         type: "generation",
         module: result.inferredModule || moduleInput || "Desconhecido",
         preview: cardInput.substring(0, 100) + "...",
-        extractedFieldsCount: result.extractedFields.length
+        extractedFieldsCount: result.extractedFields.length,
+        fullContent: result.documentation,
       });
 
       const saved = (result as any).savedFieldsCount ?? 0;

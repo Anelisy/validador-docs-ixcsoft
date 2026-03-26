@@ -10,6 +10,7 @@ export interface HistoryEntry {
   score?: number;
   preview: string;
   extractedFieldsCount: number;
+  fullContent?: string;
 }
 
 const HISTORY_KEY = "doc-validator-history";
