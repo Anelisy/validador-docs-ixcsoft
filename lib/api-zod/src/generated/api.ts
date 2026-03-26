@@ -14,3 +14,242 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary List all conversations
+ */
+export const ListGeminiConversationsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  createdAt: zod.date(),
+});
+export const ListGeminiConversationsResponse = zod.array(
+  ListGeminiConversationsResponseItem,
+);
+
+/**
+ * @summary Create a new conversation
+ */
+export const CreateGeminiConversationBody = zod.object({
+  title: zod.string(),
+});
+
+/**
+ * @summary Get conversation with messages
+ */
+export const GetGeminiConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetGeminiConversationResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  createdAt: zod.date(),
+  messages: zod.array(
+    zod.object({
+      id: zod.number(),
+      conversationId: zod.number(),
+      role: zod.string(),
+      content: zod.string(),
+      createdAt: zod.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Delete a conversation
+ */
+export const DeleteGeminiConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List messages in a conversation
+ */
+export const ListGeminiMessagesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListGeminiMessagesResponseItem = zod.object({
+  id: zod.number(),
+  conversationId: zod.number(),
+  role: zod.string(),
+  content: zod.string(),
+  createdAt: zod.date(),
+});
+export const ListGeminiMessagesResponse = zod.array(
+  ListGeminiMessagesResponseItem,
+);
+
+/**
+ * @summary Send a message and receive an AI response (SSE stream)
+ */
+export const SendGeminiMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SendGeminiMessageBody = zod.object({
+  content: zod.string(),
+});
+
+/**
+ * @summary Validate existing documentation
+ */
+export const ValidateDocBody = zod.object({
+  documentation: zod
+    .string()
+    .describe("The existing documentation text to validate"),
+  module: zod.string().optional().describe("The system module name (optional)"),
+});
+
+export const ValidateDocResponse = zod.object({
+  isValid: zod.boolean(),
+  score: zod.number().describe("Quality score from 0 to 100"),
+  suggestions: zod.array(
+    zod.object({
+      type: zod.enum(["error", "warning", "info"]),
+      section: zod.string(),
+      message: zod.string(),
+      suggestion: zod.string().optional(),
+    }),
+  ),
+  missingFields: zod.array(zod.string()),
+  wikiMatches: zod.array(
+    zod.object({
+      title: zod.string(),
+      url: zod.string(),
+      relevance: zod.enum(["high", "medium", "low"]),
+      action: zod
+        .string()
+        .describe("What action should be taken on this wiki page"),
+    }),
+  ),
+  extractedFields: zod.array(
+    zod.object({
+      fieldName: zod.string(),
+      tableName: zod.string(),
+      module: zod.string(),
+      description: zod.string().optional(),
+      fieldType: zod.string().optional(),
+    }),
+  ),
+  formattedDoc: zod
+    .string()
+    .optional()
+    .describe("The documentation reformatted following the template"),
+});
+
+/**
+ * @summary Generate documentation from a Jira card
+ */
+export const GenerateDocBody = zod.object({
+  cardContent: zod
+    .string()
+    .describe("The Jira card content describing the dev resolution"),
+  module: zod
+    .string()
+    .optional()
+    .describe(
+      "System module name (optional, will be inferred if not provided)",
+    ),
+});
+
+export const GenerateDocResponse = zod.object({
+  documentation: zod
+    .string()
+    .describe("The generated documentation in Outline format"),
+  inferredModule: zod.string().optional(),
+  extractedFields: zod.array(
+    zod.object({
+      fieldName: zod.string(),
+      tableName: zod.string(),
+      module: zod.string(),
+      description: zod.string().optional(),
+      fieldType: zod.string().optional(),
+    }),
+  ),
+  wikiMatches: zod.array(
+    zod.object({
+      title: zod.string(),
+      url: zod.string(),
+      relevance: zod.enum(["high", "medium", "low"]),
+      action: zod
+        .string()
+        .describe("What action should be taken on this wiki page"),
+    }),
+  ),
+});
+
+/**
+ * @summary Search the public wiki for related content
+ */
+export const WikiSearchBody = zod.object({
+  query: zod.string(),
+});
+
+export const WikiSearchResponse = zod.object({
+  results: zod.array(
+    zod.object({
+      title: zod.string(),
+      url: zod.string(),
+      relevance: zod.enum(["high", "medium", "low"]),
+      action: zod
+        .string()
+        .describe("What action should be taken on this wiki page"),
+    }),
+  ),
+});
+
+/**
+ * @summary List all stored field mappings
+ */
+export const ListFieldsResponseItem = zod.object({
+  id: zod.number(),
+  fieldName: zod.string(),
+  tableName: zod.string(),
+  module: zod.string(),
+  description: zod.string().optional(),
+  fieldType: zod.string().optional(),
+  createdAt: zod.date(),
+});
+export const ListFieldsResponse = zod.array(ListFieldsResponseItem);
+
+/**
+ * @summary Create a new field mapping
+ */
+export const CreateFieldBody = zod.object({
+  fieldName: zod.string(),
+  tableName: zod.string(),
+  module: zod.string(),
+  description: zod.string().optional(),
+  fieldType: zod.string().optional(),
+});
+
+/**
+ * @summary Delete a field mapping
+ */
+export const DeleteFieldParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Get mind map data of fields by module
+ */
+export const GetMindmapResponse = zod.object({
+  nodes: zod.array(
+    zod.object({
+      id: zod.string(),
+      label: zod.string(),
+      type: zod.enum(["module", "table", "field"]),
+      data: zod.record(zod.string(), zod.unknown()).optional(),
+    }),
+  ),
+  edges: zod.array(
+    zod.object({
+      id: zod.string(),
+      source: zod.string(),
+      target: zod.string(),
+      label: zod.string().optional(),
+    }),
+  ),
+});

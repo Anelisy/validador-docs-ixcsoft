@@ -8,3 +8,167 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface GeminiConversation {
+  id: number;
+  title: string;
+  createdAt: string;
+}
+
+export interface GeminiMessage {
+  id: number;
+  conversationId: number;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface CreateGeminiConversationBody {
+  title: string;
+}
+
+export interface SendGeminiMessageBody {
+  content: string;
+}
+
+export interface GeminiConversationWithMessages {
+  id: number;
+  title: string;
+  createdAt: string;
+  messages: GeminiMessage[];
+}
+
+export interface GeminiError {
+  error: string;
+}
+
+export interface ValidateDocBody {
+  /** The existing documentation text to validate */
+  documentation: string;
+  /** The system module name (optional) */
+  module?: string;
+}
+
+export type ValidationSuggestionType =
+  (typeof ValidationSuggestionType)[keyof typeof ValidationSuggestionType];
+
+export const ValidationSuggestionType = {
+  error: "error",
+  warning: "warning",
+  info: "info",
+} as const;
+
+export interface ValidationSuggestion {
+  type: ValidationSuggestionType;
+  section: string;
+  message: string;
+  suggestion?: string;
+}
+
+export type WikiMatchRelevance =
+  (typeof WikiMatchRelevance)[keyof typeof WikiMatchRelevance];
+
+export const WikiMatchRelevance = {
+  high: "high",
+  medium: "medium",
+  low: "low",
+} as const;
+
+export interface WikiMatch {
+  title: string;
+  url: string;
+  relevance: WikiMatchRelevance;
+  /** What action should be taken on this wiki page */
+  action: string;
+}
+
+export interface ExtractedField {
+  fieldName: string;
+  tableName: string;
+  module: string;
+  description?: string;
+  fieldType?: string;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  /** Quality score from 0 to 100 */
+  score: number;
+  suggestions: ValidationSuggestion[];
+  missingFields: string[];
+  wikiMatches: WikiMatch[];
+  extractedFields: ExtractedField[];
+  /** The documentation reformatted following the template */
+  formattedDoc?: string;
+}
+
+export interface GenerateDocBody {
+  /** The Jira card content describing the dev resolution */
+  cardContent: string;
+  /** System module name (optional, will be inferred if not provided) */
+  module?: string;
+}
+
+export interface GeneratedDoc {
+  /** The generated documentation in Outline format */
+  documentation: string;
+  inferredModule?: string;
+  extractedFields: ExtractedField[];
+  wikiMatches: WikiMatch[];
+}
+
+export interface WikiSearchBody {
+  query: string;
+}
+
+export interface WikiSearchResult {
+  results: WikiMatch[];
+}
+
+export interface FieldMapping {
+  id: number;
+  fieldName: string;
+  tableName: string;
+  module: string;
+  description?: string;
+  fieldType?: string;
+  createdAt: string;
+}
+
+export interface CreateFieldBody {
+  fieldName: string;
+  tableName: string;
+  module: string;
+  description?: string;
+  fieldType?: string;
+}
+
+export type MindmapNodeType =
+  (typeof MindmapNodeType)[keyof typeof MindmapNodeType];
+
+export const MindmapNodeType = {
+  module: "module",
+  table: "table",
+  field: "field",
+} as const;
+
+export type MindmapNodeData = { [key: string]: unknown };
+
+export interface MindmapNode {
+  id: string;
+  label: string;
+  type: MindmapNodeType;
+  data?: MindmapNodeData;
+}
+
+export interface MindmapEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+}
+
+export interface MindmapData {
+  nodes: MindmapNode[];
+  edges: MindmapEdge[];
+}

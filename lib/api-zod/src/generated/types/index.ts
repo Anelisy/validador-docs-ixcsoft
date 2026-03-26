@@ -6,4 +6,28 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./createFieldBody";
+export * from "./createGeminiConversationBody";
+export * from "./extractedField";
+export * from "./fieldMapping";
+export * from "./geminiConversation";
+export * from "./geminiConversationWithMessages";
+export * from "./geminiError";
+export * from "./geminiMessage";
+export * from "./generatedDoc";
+export * from "./generateDocBody";
 export * from "./healthStatus";
+export * from "./mindmapData";
+export * from "./mindmapEdge";
+export * from "./mindmapNode";
+export * from "./mindmapNodeData";
+export * from "./mindmapNodeType";
+export * from "./sendGeminiMessageBody";
+export * from "./validateDocBody";
+export * from "./validationResult";
+export * from "./validationSuggestion";
+export * from "./validationSuggestionType";
+export * from "./wikiMatch";
+export * from "./wikiMatchRelevance";
+export * from "./wikiSearchBody";
+export * from "./wikiSearchResult";

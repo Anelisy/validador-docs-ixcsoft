@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Validador de Documentação"
+version = "1.0.0"
+id = "artifacts/doc-validator"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25914
+
+[services.development]
+run = "pnpm --filter @workspace/doc-validator run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/doc-validator", "run", "build" ]
+publicDir = "artifacts/doc-validator/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25914"
+BASE_PATH = "/"

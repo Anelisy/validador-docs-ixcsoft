@@ -1,6 +1,5 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
   description: API specification
@@ -10,6 +9,12 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: gemini
+    description: Gemini AI operations
+  - name: validator
+    description: Documentation validation and generation
+  - name: fields
+    description: Field mapping and mind map
 paths:
   /healthz:
     get:
@@ -24,6 +29,240 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /gemini/conversations:
+    get:
+      operationId: listGeminiConversations
+      tags: [gemini]
+      summary: List all conversations
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GeminiConversation"
+    post:
+      operationId: createGeminiConversation
+      tags: [gemini]
+      summary: Create a new conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGeminiConversationBody"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeminiConversation"
+  /gemini/conversations/{id}:
+    get:
+      operationId: getGeminiConversation
+      tags: [gemini]
+      summary: Get conversation with messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeminiConversationWithMessages"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeminiError"
+    delete:
+      operationId: deleteGeminiConversation
+      tags: [gemini]
+      summary: Delete a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeminiError"
+  /gemini/conversations/{id}/messages:
+    get:
+      operationId: listGeminiMessages
+      tags: [gemini]
+      summary: List messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GeminiMessage"
+    post:
+      operationId: sendGeminiMessage
+      tags: [gemini]
+      summary: Send a message and receive an AI response (SSE stream)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendGeminiMessageBody"
+      responses:
+        "200":
+          description: SSE stream of assistant response chunks
+          content:
+            text/event-stream: {}
+
+  /validator/validate:
+    post:
+      operationId: validateDoc
+      tags: [validator]
+      summary: Validate existing documentation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidateDocBody"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResult"
+
+  /validator/generate:
+    post:
+      operationId: generateDoc
+      tags: [validator]
+      summary: Generate documentation from a Jira card
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateDocBody"
+      responses:
+        "200":
+          description: Generated documentation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneratedDoc"
+
+  /validator/wiki-search:
+    post:
+      operationId: wikiSearch
+      tags: [validator]
+      summary: Search the public wiki for related content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WikiSearchBody"
+      responses:
+        "200":
+          description: Wiki search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WikiSearchResult"
+
+  /fields:
+    get:
+      operationId: listFields
+      tags: [fields]
+      summary: List all stored field mappings
+      responses:
+        "200":
+          description: List of field mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FieldMapping"
+    post:
+      operationId: createField
+      tags: [fields]
+      summary: Create a new field mapping
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFieldBody"
+      responses:
+        "201":
+          description: Created field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FieldMapping"
+
+  /fields/{id}:
+    delete:
+      operationId: deleteField
+      tags: [fields]
+      summary: Delete a field mapping
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /fields/mindmap:
+    get:
+      operationId: getMindmap
+      tags: [fields]
+      summary: Get mind map data of fields by module
+      responses:
+        "200":
+          description: Mind map data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MindmapData"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +273,321 @@ components:
       required:
         - status
 
+    GeminiConversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - createdAt
+    GeminiMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - conversationId
+        - role
+        - content
+        - createdAt
+    CreateGeminiConversationBody:
+      type: object
+      properties:
+        title:
+          type: string
+      required:
+        - title
+    SendGeminiMessageBody:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+    GeminiConversationWithMessages:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeminiMessage"
+      required:
+        - id
+        - title
+        - createdAt
+        - messages
+    GeminiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    ValidateDocBody:
+      type: object
+      properties:
+        documentation:
+          type: string
+          description: The existing documentation text to validate
+        module:
+          type: string
+          description: The system module name (optional)
+      required:
+        - documentation
+
+    ValidationResult:
+      type: object
+      properties:
+        isValid:
+          type: boolean
+        score:
+          type: integer
+          description: Quality score from 0 to 100
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationSuggestion"
+        missingFields:
+          type: array
+          items:
+            type: string
+        wikiMatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/WikiMatch"
+        extractedFields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedField"
+        formattedDoc:
+          type: string
+          description: The documentation reformatted following the template
+      required:
+        - isValid
+        - score
+        - suggestions
+        - missingFields
+        - wikiMatches
+        - extractedFields
+
+    ValidationSuggestion:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [error, warning, info]
+        section:
+          type: string
+        message:
+          type: string
+        suggestion:
+          type: string
+      required:
+        - type
+        - section
+        - message
+
+    WikiMatch:
+      type: object
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+        relevance:
+          type: string
+          enum: [high, medium, low]
+        action:
+          type: string
+          description: What action should be taken on this wiki page
+      required:
+        - title
+        - url
+        - relevance
+        - action
+
+    ExtractedField:
+      type: object
+      properties:
+        fieldName:
+          type: string
+        tableName:
+          type: string
+        module:
+          type: string
+        description:
+          type: string
+        fieldType:
+          type: string
+      required:
+        - fieldName
+        - tableName
+        - module
+
+    GenerateDocBody:
+      type: object
+      properties:
+        cardContent:
+          type: string
+          description: The Jira card content describing the dev resolution
+        module:
+          type: string
+          description: System module name (optional, will be inferred if not provided)
+      required:
+        - cardContent
+
+    GeneratedDoc:
+      type: object
+      properties:
+        documentation:
+          type: string
+          description: The generated documentation in Outline format
+        inferredModule:
+          type: string
+        extractedFields:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExtractedField"
+        wikiMatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/WikiMatch"
+      required:
+        - documentation
+        - extractedFields
+        - wikiMatches
+
+    WikiSearchBody:
+      type: object
+      properties:
+        query:
+          type: string
+      required:
+        - query
+
+    WikiSearchResult:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/WikiMatch"
+      required:
+        - results
+
+    FieldMapping:
+      type: object
+      properties:
+        id:
+          type: integer
+        fieldName:
+          type: string
+        tableName:
+          type: string
+        module:
+          type: string
+        description:
+          type: string
+        fieldType:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - fieldName
+        - tableName
+        - module
+        - createdAt
+
+    CreateFieldBody:
+      type: object
+      properties:
+        fieldName:
+          type: string
+        tableName:
+          type: string
+        module:
+          type: string
+        description:
+          type: string
+        fieldType:
+          type: string
+      required:
+        - fieldName
+        - tableName
+        - module
+
+    MindmapData:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/MindmapNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/MindmapEdge"
+      required:
+        - nodes
+        - edges
+
+    MindmapNode:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum: [module, table, field]
+        data:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - label
+        - type
+
+    MindmapEdge:
+      type: object
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+        target:
+          type: string
+        label:
+          type: string
+      required:
+        - id
+        - source
+        - target

@@ -1,0 +1,16 @@
+packages:
+  "@xyflow/react": "Interactive node-based mind map visualization for field relationships"
+  "framer-motion": "Smooth animations for tab transitions and result reveals"
+  "react-markdown": "Rendering the generated markdown documentation beautifully"
+  "remark-gfm": "GitHub flavored markdown support for tables and task lists"
+  "date-fns": "Formatting dates in history and UI"
+
+images:
+  - path: "artifacts/doc-validator/public/images/hero-bg.png"
+    description: "Abstract geometric mesh background in deep navy blue, vibrant indigo, and subtle neon purple with soft light leaks, very dark professional theme"
+    aspect_ratio: "16:9"
+
+notes:
+  - Using provided `@workspace/api-client-react` hooks for all API interactions.
+  - Using a dark professional aesthetic with glassmorphism elements.
+  - Implementing local storage for the History page as there is no specific backend endpoint for validation/generation history.
