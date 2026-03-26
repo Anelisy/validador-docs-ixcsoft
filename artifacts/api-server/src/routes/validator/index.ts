@@ -100,6 +100,8 @@ async function autoSaveFields(fields: RawField[]): Promise<number> {
   let saved = 0;
   for (const f of fields) {
     if (!f.fieldName || !f.tableName || !f.module) continue;
+    // Safety net: never save records where any field contains "(inferência)"
+    if (f.tableName.includes("inferência") || f.tableName.includes("inferencia")) continue;
     const existing = await db
       .select({ id: fieldsTable.id })
       .from(fieldsTable)
@@ -157,11 +159,11 @@ ${documentation}
 ---
 
 REGRAS PARA extractedFields — leia com atenção:
-- "tableName" = nome da ABA principal onde o campo aparece na interface (ex: "Recebimentos", "Cadastro de Cliente", "Dados Fiscais")
-- A documentação da central de ajuda organiza os campos por ABA — use o título da aba como "tableName"
-- "sectionName" = nome da sub-seção DENTRO da aba, quando houver (ex: "Dados Bancários", "Informações Adicionais"). Se não houver sub-seção, omita o campo ou deixe null
+- "tableName" = nome da ABA/TELA onde o campo aparece na interface (ex: "Recebimentos", "Ordens de Serviço", "Cadastro de Cliente", "Dados Fiscais")
+- Use o nome da tela ou funcionalidade mais próxima mencionada no texto — pode ser um título de seção, nome de menu, ou descrição de tela
+- PROIBIDO usar a palavra "inferência" ou qualquer variante em qualquer campo — NUNCA coloque "(inferência)" em tableName
+- "sectionName" = nome da sub-seção DENTRO da aba, quando houver (ex: "Dados Bancários", "Filtros Avançados"). Omita se não houver
 - NÃO use nomes de tabelas de banco de dados — use os nomes visuais da interface
-- Só use "(inferência)" como tableName se absolutamente nenhuma aba for mencionada
 - "fieldType" = tipo visual do campo (Texto, Número, Data, Booleano, Seleção, Arquivo, Moeda, etc.)
 
 Retorne APENAS um JSON válido (sem markdown, sem \`\`\`), com esta estrutura exata:
@@ -255,11 +257,11 @@ ${cardContent}
 ---
 
 REGRAS PARA extractedFields — leia com atenção:
-- "tableName" = nome da ABA principal onde o campo aparece na interface (ex: "Recebimentos", "Cadastro de Cliente", "Dados Fiscais", "Configurações")
-- "sectionName" = nome da sub-seção DENTRO da aba, quando houver (ex: "Dados Bancários", "Informações Adicionais"). Omita se não houver sub-seção
-- Procure no texto menções a telas, abas ou menus — use ESSE nome como tableName
+- "tableName" = nome da ABA/TELA onde o campo aparece na interface (ex: "Recebimentos", "Ordens de Serviço", "Cadastro de Cliente", "Configurações")
+- Use o nome da tela ou funcionalidade mais próxima descrita no texto — título de seção, menu ou descrição de tela
+- PROIBIDO usar a palavra "inferência" ou qualquer variante em qualquer campo — NUNCA use "(inferência)" em tableName
+- "sectionName" = nome da sub-seção DENTRO da aba, quando houver (ex: "Dados Bancários", "Informações Adicionais"). Omita se não houver
 - NÃO use nomes de tabelas de banco de dados — use os nomes visuais da interface
-- Só use "(inferência)" se absolutamente nenhuma aba for mencionada
 - "fieldType" = tipo visual do campo (Texto, Número, Data, Booleano, Seleção, Moeda, Arquivo, etc.)
 
 Retorne APENAS um JSON válido (sem markdown, sem \`\`\`), com esta estrutura exata:
