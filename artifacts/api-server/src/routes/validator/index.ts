@@ -155,8 +155,16 @@ Documentação a analisar:
 ${documentation}
 ---
 
+REGRAS PARA extractedFields — leia com atenção:
+- "tableName" = nome da ABA/SEÇÃO do sistema onde o campo aparece (ex: "Recebimentos", "Cadastro de Cliente", "Dados Fiscais")
+- A documentação da central de ajuda SEMPRE traz o nome da aba explicitamente como título de seção ou cabeçalho de grupo de campos — use ESSE nome
+- NÃO use nomes de tabelas de banco de dados (ex: "clientes", "faturas") como tableName — use o nome da tela/aba conforme aparece na interface
+- Se o documento listar campos sob um título como "Aba Recebimentos" ou "## Recebimentos", use "Recebimentos" como tableName
+- Só use "(inferência)" como tableName se absolutamente nenhuma aba ou seção for mencionada no documento
+- "fieldType" = tipo do campo conforme dicionário da interface (Texto, Número, Data, Booleano, Seleção, Arquivo, Moeda, etc.)
+
 Retorne APENAS um JSON válido (sem markdown, sem \`\`\`), com esta estrutura exata:
-{"isValid":true,"score":75,"inferredModule":"Financeiro","suggestions":[{"type":"warning","section":"Contexto do módulo","message":"Falta descrição do problema de negócio","suggestion":"Adicionar 1-3 parágrafos explicando o contexto"}],"missingFields":["Histórico de mudança","Critérios de atenção"],"extractedFields":[{"fieldName":"data_vencimento","tableName":"faturas","module":"Financeiro","description":"Data de vencimento da fatura do cliente","fieldType":"Data"}],"wikiKeywords":["financeiro","fatura","vencimento"]}
+{"isValid":true,"score":75,"inferredModule":"Financeiro","suggestions":[{"type":"warning","section":"Contexto do módulo","message":"Falta descrição do problema de negócio","suggestion":"Adicionar 1-3 parágrafos explicando o contexto"}],"missingFields":["Histórico de mudança","Critérios de atenção"],"extractedFields":[{"fieldName":"data_vencimento","tableName":"Recebimentos","module":"Financeiro","description":"Data de vencimento da fatura do cliente","fieldType":"Data"}],"wikiKeywords":["financeiro","fatura","vencimento"]}
 
 Mantenha os arrays curtos (máx 5 itens cada). Sem texto antes ou depois do JSON.`;
 
@@ -245,8 +253,16 @@ Card/resolução do dev:
 ${cardContent}
 ---
 
+REGRAS PARA extractedFields — leia com atenção:
+- "tableName" = nome da ABA/SEÇÃO/TELA do sistema onde o campo aparece (ex: "Recebimentos", "Cadastro de Cliente", "Dados Fiscais", "Configurações")
+- Procure no texto menções a telas, abas, seções, formulários ou menus — use ESSE nome como tableName
+- NÃO use nomes de tabelas de banco de dados (ex: "clientes", "faturas") — use o nome visual da interface
+- Se o card mencionar "na tela de Recebimentos" ou "aba Financeiro > Recebimentos", use "Recebimentos" como tableName
+- Só use "(inferência)" se absolutamente nenhuma tela ou aba for mencionada
+- "fieldType" = tipo visual do campo (Texto, Número, Data, Booleano, Seleção, Moeda, Arquivo, etc.)
+
 Retorne APENAS um JSON válido (sem markdown, sem \`\`\`), com esta estrutura exata:
-{"inferredModule":"Financeiro","extractedFields":[{"fieldName":"data_vencimento","tableName":"faturas","module":"Financeiro","description":"Data de vencimento da fatura do cliente","fieldType":"Data"}],"wikiKeywords":["financeiro","fatura"]}
+{"inferredModule":"Financeiro","extractedFields":[{"fieldName":"data_vencimento","tableName":"Recebimentos","module":"Financeiro","description":"Data de vencimento da fatura do cliente","fieldType":"Data"}],"wikiKeywords":["financeiro","fatura"]}
 
 Mantenha extractedFields com máx 10 itens. Sem texto antes ou depois do JSON.`;
 
