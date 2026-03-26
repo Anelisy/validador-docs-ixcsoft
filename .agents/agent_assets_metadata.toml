@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "-nGYbNuABihHDarIXo_Tp"
+uri = "file://validador-docs.tar.gz"
+type = "unspecified"
+title = "Validador de Docs — Código Fonte"
