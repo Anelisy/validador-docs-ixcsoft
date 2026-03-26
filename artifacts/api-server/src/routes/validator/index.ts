@@ -305,6 +305,74 @@ Retorne APENAS o markdown da documentação, sem JSON, sem explicações adicion
   }
 });
 
+router.post("/fetch-url", async (req, res) => {
+  const { url } = req.body as { url?: string };
+  if (!url || typeof url !== "string") {
+    res.status(400).json({ error: "URL inválida" });
+    return;
+  }
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "DocValidator/1.0",
+        "Accept": "text/html,application/xhtml+xml",
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+
+    if (!response.ok) {
+      res.status(400).json({ error: `Não foi possível acessar a URL (status ${response.status})` });
+      return;
+    }
+
+    const html = await response.text();
+
+    // Extract meaningful content: prefer <article>, <main>, or <body>
+    const extractSection = (tag: string): string | null => {
+      const match = html.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\/${tag}>`, "i"));
+      return match ? match[1] : null;
+    };
+
+    const rawContent =
+      extractSection("article") ||
+      extractSection("main") ||
+      extractSection("body") ||
+      html;
+
+    // Strip HTML tags and decode entities
+    const text = rawContent
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+      .replace(/<header[\s\S]*?<\/header>/gi, "")
+      .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s{2,}/g, "\n")
+      .trim();
+
+    if (text.length < 50) {
+      res.status(400).json({ error: "Não foi possível extrair conteúdo suficiente da página." });
+      return;
+    }
+
+    // Extract page title
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].trim() : url;
+
+    res.json({ text: text.slice(0, 20000), title, charCount: text.length });
+  } catch (err) {
+    req.log.error({ err }, "Error fetching URL");
+    res.status(500).json({ error: "Falha ao buscar URL. Verifique se o endereço está acessível." });
+  }
+});
+
 router.post("/wiki-search", async (req, res) => {
   const parsed = WikiSearchBody.safeParse(req.body);
   if (!parsed.success) {

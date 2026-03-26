@@ -10,7 +10,10 @@ import {
   Copy, 
   Search, 
   Database,
-  Network
+  Network,
+  Link,
+  Loader2,
+  X,
 } from "lucide-react";
 import { useValidateDoc, useGenerateDoc } from "@workspace/api-client-react";
 import type { ValidationResult, GeneratedDoc } from "@workspace/api-client-react/src/generated/api.schemas";
@@ -35,6 +38,9 @@ export default function ValidatorPage() {
   // Validation State
   const [docInput, setDocInput] = useState("");
   const [valResult, setValResult] = useState<ValidationResult | null>(null);
+  const [urlInput, setUrlInput] = useState("");
+  const [fetchedTitle, setFetchedTitle] = useState<string | null>(null);
+  const [isFetchingUrl, setIsFetchingUrl] = useState(false);
   
   // Generation State
   const [cardInput, setCardInput] = useState("");
@@ -122,6 +128,34 @@ export default function ValidatorPage() {
     toast({ title: "Copiado", description: "Texto copiado para a área de transferência." });
   };
 
+  const handleFetchUrl = async () => {
+    if (!urlInput.trim()) return;
+    const url = urlInput.trim();
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      toast({ title: "URL inválida", description: "A URL deve começar com http:// ou https://", variant: "destructive" });
+      return;
+    }
+    setIsFetchingUrl(true);
+    setFetchedTitle(null);
+    try {
+      const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+      const res = await fetch(`${BASE}/api/validator/fetch-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Falha ao buscar URL");
+      setDocInput(data.text);
+      setFetchedTitle(data.title);
+      toast({ title: "Página carregada", description: `${data.charCount.toLocaleString()} caracteres extraídos.` });
+    } catch (err: any) {
+      toast({ title: "Erro ao buscar URL", description: err.message, variant: "destructive" });
+    } finally {
+      setIsFetchingUrl(false);
+    }
+  };
+
   return (
     <div className="p-6 lg:p-10 max-w-6xl mx-auto w-full">
       <div className="mb-8">
@@ -162,9 +196,49 @@ export default function ValidatorPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-4">
               <Label className="text-base font-semibold">Documentação Atual</Label>
+
+              {/* URL Fetch Bar */}
+              <div className="flex gap-2 items-center">
+                <div className="relative flex-1">
+                  <Link className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Cole um link da Wiki para buscar o conteúdo..."
+                    className="pl-9 h-10 rounded-xl bg-card/30 border-border/50 text-sm focus-visible:ring-primary/20"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleFetchUrl()}
+                  />
+                  {urlInput && (
+                    <button
+                      onClick={() => { setUrlInput(""); setFetchedTitle(null); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <Button
+                  onClick={handleFetchUrl}
+                  disabled={isFetchingUrl || !urlInput.trim()}
+                  size="sm"
+                  variant="outline"
+                  className="h-10 px-4 rounded-xl shrink-0"
+                >
+                  {isFetchingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : "Buscar"}
+                </Button>
+              </div>
+
+              {/* Fetched page indicator */}
+              {fetchedTitle && (
+                <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 rounded-xl">
+                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">Conteúdo carregado: <strong>{fetchedTitle}</strong></span>
+                </div>
+              )}
+
               <Textarea 
-                placeholder="Cole aqui a documentação redigida..."
-                className="min-h-[400px] resize-y rounded-2xl bg-card/30 border-border/50 p-6 text-base leading-relaxed focus-visible:ring-primary/20"
+                placeholder="Cole aqui a documentação redigida... ou busque via link acima."
+                className="min-h-[340px] resize-y rounded-2xl bg-card/30 border-border/50 p-6 text-base leading-relaxed focus-visible:ring-primary/20"
                 value={docInput}
                 onChange={(e) => setDocInput(e.target.value)}
               />
