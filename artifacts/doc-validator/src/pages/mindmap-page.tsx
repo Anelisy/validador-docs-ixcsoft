@@ -42,11 +42,11 @@ const TabNode = ({ data }: { data: Record<string, unknown> }) => (
 );
 
 const FieldNode = ({ data }: { data: Record<string, unknown> }) => (
-  <div className="rounded-lg border border-border/60 bg-card/90 backdrop-blur-md shadow px-3 py-2 min-w-[140px] max-w-[200px] text-left">
+  <div className="rounded-lg border border-border/60 bg-card/90 backdrop-blur-md shadow px-3 py-2 text-left">
     <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-    <div className="font-mono text-xs font-bold text-foreground truncate">{data.label as string}</div>
+    <div className="font-mono text-xs font-bold text-foreground whitespace-nowrap">{data.label as string}</div>
     {data.tableName && (
-      <div className="text-[10px] text-muted-foreground/60 mt-0.5 truncate font-mono">{data.tableName as string}</div>
+      <div className="text-[10px] text-muted-foreground/60 mt-0.5 font-mono whitespace-nowrap">{data.tableName as string}</div>
     )}
   </div>
 );
