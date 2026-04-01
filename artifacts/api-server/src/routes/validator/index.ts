@@ -10,14 +10,17 @@ const router: IRouter = Router();
 const SYSTEM_CONTEXT = `Você é um especialista em documentação técnica para sistemas ERP (IXC Soft). Seu papel é transformar insumos técnicos em documentação semântica detalhada e reutilizável, pronta para o Outline.
 
 Regras:
-- Inferir o módulo silenciosamente quando não vier explicitamente — NUNCA escreva "(inferência)", "(infer)", "inferido" ou qualquer variante no texto
-- Quando não houver evidência de um dado, use apenas "não informado" — PROIBIDO usar "(inferência)" em qualquer parte do texto
+- PROIBIDO usar "(inferência)", "(infer)", "inferido" ou qualquer variante — em nenhuma parte do texto
+- Módulo incerto ou inferido: escreva o nome do módulo em itálico markdown, ex: "*Financeiro*". Nunca deixe em branco.
+- Campo ou valor que não pôde ser interpretado corretamente: use exatamente "XYZ" como placeholder visível, ex: "XYZ" na coluna de descrição ou valor
 - Priorizar regra de negócio e impacto sistêmico
 - Tom profissional, técnico e descritivo (texto será consumido por IA)
 - SEM prefácio conversacional ou metacomentários`;
 
 const DOC_SECTIONS = `
 # [Título descritivo]
+
+> Módulo: [Nome do módulo — se incerto, escreva em itálico: *NomeDoMódulo*]
 
 ## Contexto do módulo
 [1-3 parágrafos explicando o problema de negócio que a funcionalidade atende]
@@ -39,12 +42,14 @@ const DOC_SECTIONS = `
 | Nome do campo | Tipo | Descrição | Regra/Opções |
 |---|---|---|---|
 | campo_exemplo | Texto | Descrição do campo | Obrigatório |
+| XYZ | XYZ | XYZ | XYZ |
 
 (Tipos: Texto, Data, Número, Booleano, Seleção, Arquivo, Tabela, Oculto, Não informado)
+(Use "XYZ" nas células cujo valor não pôde ser interpretado a partir do insumo)
 
 ## Análise de impacto (developer view)
-- Funções/rotinas afetadas: [lista]
-- Tabelas com leitura/escrita: [lista]
+- Funções/rotinas afetadas: [lista ou XYZ se não identificado]
+- Tabelas com leitura/escrita: [lista ou XYZ se não identificado]
 - Pontos de quebra com input inesperado: [lista]
 - Impactos em navegação/permissões/integrações: [lista]
 
@@ -172,6 +177,7 @@ REGRAS PARA extractedFields — leia com atenção:
 - "tableName" = nome da ABA/TELA onde o campo aparece na interface (ex: "Recebimentos", "Ordens de Serviço", "Cadastro de Cliente", "Dados Fiscais")
 - Use o nome da tela ou funcionalidade mais próxima mencionada no texto — pode ser um título de seção, nome de menu, ou descrição de tela
 - PROIBIDO usar a palavra "inferência" ou qualquer variante em qualquer campo — NUNCA coloque "(inferência)" em tableName
+- Se tableName ou fieldName não puder ser identificado com certeza, use "XYZ" como valor literal do campo
 - "sectionName" = nome da sub-seção DENTRO da aba, quando houver (ex: "Dados Bancários", "Filtros Avançados"). Omita se não houver
 - NÃO use nomes de tabelas de banco de dados — use os nomes visuais da interface
 - "fieldType" = tipo visual do campo (Texto, Número, Data, Booleano, Seleção, Arquivo, Moeda, etc.)
@@ -270,6 +276,7 @@ REGRAS PARA extractedFields — leia com atenção:
 - "tableName" = nome da ABA/TELA onde o campo aparece na interface (ex: "Recebimentos", "Ordens de Serviço", "Cadastro de Cliente", "Configurações")
 - Use o nome da tela ou funcionalidade mais próxima descrita no texto — título de seção, menu ou descrição de tela
 - PROIBIDO usar a palavra "inferência" ou qualquer variante em qualquer campo — NUNCA use "(inferência)" em tableName
+- Se tableName ou fieldName não puder ser identificado com certeza, use "XYZ" como valor literal do campo
 - "sectionName" = nome da sub-seção DENTRO da aba, quando houver (ex: "Dados Bancários", "Informações Adicionais"). Omita se não houver
 - NÃO use nomes de tabelas de banco de dados — use os nomes visuais da interface
 - "fieldType" = tipo visual do campo (Texto, Número, Data, Booleano, Seleção, Moeda, Arquivo, etc.)
