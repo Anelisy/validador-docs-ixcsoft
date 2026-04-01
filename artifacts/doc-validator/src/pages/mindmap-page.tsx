@@ -7,15 +7,13 @@ import {
   Handle,
   Position,
   MiniMap,
-  useReactFlow,
   ReactFlowProvider,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { toPng } from "html-to-image";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useListFields, useCreateField, useDeleteField } from "@workspace/api-client-react";
-import { Network, Plus, Trash2, Search, LayoutGrid, CheckSquare, Square, Download, ChevronDown, X } from "lucide-react";
+import { Network, Plus, Trash2, Search, LayoutGrid, CheckSquare, Square, Copy, Check, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -296,44 +294,108 @@ function buildTreeLayout(fields: FieldItem[], registeredModules: string[]) {
 }
 
 // ──────────────────────────────────────────────
-// PNG Export button
+// Markdown builder
 // ──────────────────────────────────────────────
-function ExportPngButton() {
-  const { getNodes } = useReactFlow();
-  const { toast } = useToast();
-  const [exporting, setExporting] = useState(false);
+function buildMarkdown(fields: FieldItem[], registeredModules: string[]): string {
+  type SectionMap = Map<string, FieldItem[]>;
+  type AbaMap = Map<string, SectionMap>;
+  type ModuleMap = Map<string, AbaMap>;
 
-  const handleExport = useCallback(async () => {
-    const flowEl = document.querySelector(".react-flow") as HTMLElement | null;
-    if (!flowEl) return;
-    setExporting(true);
-    try {
-      const dataUrl = await toPng(flowEl, {
-        backgroundColor: "#0f0f11",
-        quality: 1,
-        pixelRatio: 2,
-        filter: (node) => {
-          if (node.classList?.contains("react-flow__minimap")) return false;
-          if (node.classList?.contains("react-flow__controls")) return false;
-          return true;
-        },
-      });
-      const link = document.createElement("a");
-      link.download = `mapa-campos-${Date.now()}.png`;
-      link.href = dataUrl;
-      link.click();
-      toast({ title: "PNG exportado", description: "Imagem pronta para colar no Outline." });
-    } catch {
-      toast({ title: "Erro ao exportar", variant: "destructive" });
-    } finally {
-      setExporting(false);
+  const tree: ModuleMap = new Map();
+  for (const modName of registeredModules) tree.set(modName, new Map());
+  for (const f of fields) {
+    if (!tree.has(f.module)) tree.set(f.module, new Map());
+    const abas = tree.get(f.module)!;
+    if (!abas.has(f.tableName)) abas.set(f.tableName, new Map());
+    const sections = abas.get(f.tableName)!;
+    const secKey = f.sectionName?.trim() || "_";
+    if (!sections.has(secKey)) sections.set(secKey, []);
+    sections.get(secKey)!.push(f);
+  }
+
+  const lines: string[] = [];
+  lines.push("# Mapa de Campos — Dicionário de Interface");
+  lines.push("");
+  lines.push(`> Exportado em ${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}`);
+  lines.push("");
+
+  for (const [moduleName, abas] of tree) {
+    const fieldCount = [...abas.values()].flatMap(s => [...s.values()]).flat().length;
+    lines.push(`## Módulo: ${moduleName}${fieldCount === 0 ? " *(sem campos)*" : ""}`);
+    lines.push("");
+
+    for (const [tabName, sections] of abas) {
+      lines.push(`### Aba: ${tabName}`);
+      lines.push("");
+
+      const hasRealSections = [...sections.keys()].some(k => k !== "_");
+
+      if (!hasRealSections) {
+        const allFields = sections.get("_") ?? [];
+        if (allFields.length > 0) {
+          lines.push("| Campo | Tipo | Descrição |");
+          lines.push("|---|---|---|");
+          for (const f of allFields) {
+            lines.push(`| \`${f.fieldName}\` | ${f.fieldType ?? "—"} | ${f.description ?? "—"} |`);
+          }
+          lines.push("");
+        }
+      } else {
+        for (const [secKey, secFields] of sections) {
+          if (secKey !== "_") {
+            lines.push(`#### Seção: ${secKey}`);
+            lines.push("");
+          }
+          if (secFields.length > 0) {
+            lines.push("| Campo | Tipo | Descrição |");
+            lines.push("|---|---|---|");
+            for (const f of secFields) {
+              lines.push(`| \`${f.fieldName}\` | ${f.fieldType ?? "—"} | ${f.description ?? "—"} |`);
+            }
+            lines.push("");
+          }
+        }
+      }
     }
-  }, [getNodes, toast]);
+
+    lines.push("---");
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+// ──────────────────────────────────────────────
+// Markdown copy button
+// ──────────────────────────────────────────────
+function CopyMarkdownButton({ fields, registeredModules }: { fields: FieldItem[]; registeredModules: string[] }) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    const md = buildMarkdown(fields, registeredModules);
+    try {
+      await navigator.clipboard.writeText(md);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast({ title: "Markdown copiado!", description: "Cole diretamente no Outline." });
+    } catch {
+      // Fallback: download .md file
+      const blob = new Blob([md], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.download = `mapa-campos-${Date.now()}.md`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Arquivo .md baixado", description: "Abra e cole o conteúdo no Outline." });
+    }
+  }, [fields, registeredModules, toast]);
 
   return (
-    <Button size="sm" variant="outline" className="h-8 rounded-lg gap-1.5 text-xs" onClick={handleExport} disabled={exporting}>
-      <Download className="w-3.5 h-3.5" />
-      {exporting ? "Exportando..." : "Exportar PNG"}
+    <Button size="sm" variant="outline" className="h-8 rounded-lg gap-1.5 text-xs" onClick={handleCopy}>
+      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+      {copied ? "Copiado!" : "Copiar Markdown"}
     </Button>
   );
 }
@@ -454,11 +516,16 @@ function MindmapInner() {
     setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }, []);
 
-  // Compute graph nodes/edges reactively — no setState needed
-  const { nodes, edges } = useMemo(() => {
-    const selected = (fieldsList ?? []).filter(f => selectedIds.has(f.id));
-    return buildTreeLayout(selected, registeredModuleNames);
-  }, [selectedIds, fieldsList, registeredModuleNames]);
+  // Compute selected fields + graph nodes/edges reactively
+  const selectedFields = useMemo(
+    () => (fieldsList ?? []).filter(f => selectedIds.has(f.id)),
+    [fieldsList, selectedIds]
+  );
+
+  const { nodes, edges } = useMemo(
+    () => buildTreeLayout(selectedFields, registeredModuleNames),
+    [selectedFields, registeredModuleNames]
+  );
 
   const handleAddField = async () => {
     if (!newField.fieldName || !newField.tableName || !newField.module) {
@@ -542,7 +609,7 @@ function MindmapInner() {
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-card/80 backdrop-blur px-3 py-1.5 rounded-full border border-border/50">
             <span className="w-3 h-3 rounded-sm bg-card border border-border inline-block" /> Campo
           </span>
-          <ExportPngButton />
+          <CopyMarkdownButton fields={selectedFields} registeredModules={registeredModuleNames} />
         </div>
       </div>
 
