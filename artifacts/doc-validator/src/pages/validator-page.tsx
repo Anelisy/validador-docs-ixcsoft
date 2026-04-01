@@ -304,7 +304,7 @@ export default function ValidatorPage() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-4xl font-display font-extrabold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-          Analisador de Conteúdo
+          Validador
         </h1>
         <p className="text-muted-foreground mt-2 text-lg">
           Valide documentações existentes ou gere novas a partir de cards do Jira com IA.
