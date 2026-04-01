@@ -11,4 +11,6 @@ export interface ValidateDocBody {
   documentation: string;
   /** The system module name (optional) */
   module?: string;
+  /** Extra prompt instructions from the user session */
+  customInstructions?: string[];
 }

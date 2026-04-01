@@ -100,6 +100,7 @@ export const ValidateDocBody = zod.object({
     .string()
     .describe("The existing documentation text to validate"),
   module: zod.string().optional().describe("The system module name (optional)"),
+  customInstructions: zod.array(zod.string()).optional().describe("Extra prompt instructions from the user session"),
 });
 
 export const ValidateDocResponse = zod.object({
@@ -152,6 +153,7 @@ export const GenerateDocBody = zod.object({
     .describe(
       "System module name (optional, will be inferred if not provided)",
     ),
+  customInstructions: zod.array(zod.string()).optional().describe("Extra prompt instructions from the user session"),
 });
 
 export const GenerateDocResponse = zod.object({

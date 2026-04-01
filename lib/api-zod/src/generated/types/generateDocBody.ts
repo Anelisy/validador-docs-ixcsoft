@@ -11,4 +11,6 @@ export interface GenerateDocBody {
   cardContent: string;
   /** System module name (optional, will be inferred if not provided) */
   module?: string;
+  /** Extra prompt instructions from the user session */
+  customInstructions?: string[];
 }

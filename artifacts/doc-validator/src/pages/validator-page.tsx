@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { 
@@ -14,12 +14,18 @@ import {
   Link,
   Loader2,
   X,
+  Plus,
+  ChevronDown,
+  ChevronUp,
+  SlidersHorizontal,
+  Trash2,
 } from "lucide-react";
 import { useValidateDoc, useGenerateDoc } from "@workspace/api-client-react";
 import type { ValidationResult, GeneratedDoc } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useQueryClient } from "@tanstack/react-query";
 import { useHistory } from "@/hooks/use-history";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +36,131 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MarkdownPreview } from "@/components/markdown-preview";
+
+// ──────────────────────────────────────────────
+// Custom prompts — per user, stored in localStorage
+// ──────────────────────────────────────────────
+function useCustomPrompts(userEmail: string | undefined) {
+  const key = `custom_prompts_${userEmail ?? "guest"}`;
+
+  const [prompts, setPrompts] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(key, JSON.stringify(prompts)); } catch {}
+  }, [prompts, key]);
+
+  const add = (text: string) => {
+    const t = text.trim();
+    if (!t) return;
+    setPrompts(prev => [...prev, t]);
+  };
+
+  const remove = (idx: number) => setPrompts(prev => prev.filter((_, i) => i !== idx));
+
+  return { prompts, add, remove };
+}
+
+// ──────────────────────────────────────────────
+// Custom Prompts Panel
+// ──────────────────────────────────────────────
+function CustomPromptsPanel({ userEmail }: { userEmail: string | undefined }) {
+  const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { prompts, add, remove } = useCustomPrompts(userEmail);
+
+  const handleAdd = () => {
+    add(input);
+    setInput("");
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div className="rounded-2xl border border-border/50 bg-card/20 backdrop-blur-sm overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-card/30 transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <SlidersHorizontal className="w-4 h-4 text-primary" />
+          <span className="text-sm font-semibold">Instruções Personalizadas</span>
+          {prompts.length > 0 && (
+            <Badge variant="secondary" className="text-xs h-5 px-1.5">{prompts.length}</Badge>
+          )}
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-5 pb-4 space-y-3 border-t border-border/30">
+              <p className="text-xs text-muted-foreground pt-3">
+                Estas instruções são enviadas à IA em todas as análises e gerações desta sessão.
+              </p>
+
+              {/* Add new prompt */}
+              <div className="flex gap-2">
+                <Input
+                  ref={inputRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") handleAdd(); }}
+                  placeholder="Ex: Foque em regras de validação de campos obrigatórios..."
+                  className="h-9 text-sm rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/20 flex-1"
+                />
+                <Button
+                  size="sm"
+                  onClick={handleAdd}
+                  disabled={!input.trim()}
+                  className="h-9 px-3 rounded-xl shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Prompt list */}
+              {prompts.length > 0 && (
+                <div className="space-y-1.5">
+                  {prompts.map((p, i) => (
+                    <div key={i} className="flex items-start gap-2 p-2.5 rounded-xl bg-card/60 border border-border/40 group">
+                      <span className="text-xs text-primary font-bold mt-0.5 shrink-0">{i + 1}.</span>
+                      <span className="text-sm flex-1 leading-snug">{p}</span>
+                      <button
+                        onClick={() => remove(i)}
+                        className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100 shrink-0"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {prompts.length === 0 && (
+                <p className="text-xs text-muted-foreground/60 italic">Nenhuma instrução adicionada.</p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function ValidatorPage() {
   const [activeTab, setActiveTab] = useState<"validate" | "generate">("validate");
@@ -50,9 +181,13 @@ export default function ValidatorPage() {
   const { addEntry } = useHistory();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
+  const { user } = useAuth();
 
   const validateMutation = useValidateDoc();
   const generateMutation = useGenerateDoc();
+
+  // Custom prompts from localStorage (per user)
+  const { prompts: customPrompts } = useCustomPrompts(user?.email);
 
   const invalidateFields = () => queryClient.invalidateQueries({ queryKey: ["/api/fields"] });
 
@@ -64,7 +199,11 @@ export default function ValidatorPage() {
 
     try {
       const result = await validateMutation.mutateAsync({
-        data: { documentation: docInput, module: moduleInput || undefined }
+        data: {
+          documentation: docInput,
+          module: moduleInput || undefined,
+          customInstructions: customPrompts.length > 0 ? customPrompts : undefined,
+        }
       });
       setValResult(result);
       invalidateFields();
@@ -98,7 +237,11 @@ export default function ValidatorPage() {
 
     try {
       const result = await generateMutation.mutateAsync({
-        data: { cardContent: cardInput, module: moduleInput || undefined }
+        data: {
+          cardContent: cardInput,
+          module: moduleInput || undefined,
+          customInstructions: customPrompts.length > 0 ? customPrompts : undefined,
+        }
       });
       setGenResult(result);
       invalidateFields();
@@ -157,8 +300,9 @@ export default function ValidatorPage() {
   };
 
   return (
-    <div className="p-6 lg:p-10 max-w-6xl mx-auto w-full">
-      <div className="mb-8">
+    <div className="p-5 lg:p-8 w-full min-w-0">
+      {/* Header */}
+      <div className="mb-6">
         <h1 className="text-4xl font-display font-extrabold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
           Analisador de Conteúdo
         </h1>
@@ -167,8 +311,13 @@ export default function ValidatorPage() {
         </p>
       </div>
 
+      {/* Custom prompts panel — shared across both tabs */}
+      <div className="mb-6">
+        <CustomPromptsPanel userEmail={user?.email} />
+      </div>
+
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <TabsList className="bg-muted/50 p-1.5 rounded-2xl border border-border/50">
             <TabsTrigger value="validate" className="rounded-xl px-6 py-2.5 data-[state=active]:bg-card data-[state=active]:shadow-sm">
               <CheckCircle2 className="w-4 h-4 mr-2" />
@@ -193,13 +342,14 @@ export default function ValidatorPage() {
 
         {/* VALIDATE TAB */}
         <TabsContent value="validate" className="space-y-6 focus-visible:outline-none focus-visible:ring-0">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="space-y-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 min-w-0">
+            {/* Left col */}
+            <div className="space-y-4 min-w-0">
               <Label className="text-base font-semibold">Documentação Atual</Label>
 
               {/* URL Fetch Bar */}
               <div className="flex gap-2 items-center">
-                <div className="relative flex-1">
+                <div className="relative flex-1 min-w-0">
                   <Link className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Cole um link da Wiki para buscar o conteúdo..."
@@ -228,7 +378,6 @@ export default function ValidatorPage() {
                 </Button>
               </div>
 
-              {/* Fetched page indicator */}
               {fetchedTitle && (
                 <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/5 border border-emerald-500/20 px-3 py-2 rounded-xl">
                   <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -238,7 +387,7 @@ export default function ValidatorPage() {
 
               <Textarea 
                 placeholder="Cole aqui a documentação redigida... ou busque via link acima."
-                className="min-h-[340px] resize-y rounded-2xl bg-card/30 border-border/50 p-6 text-base leading-relaxed focus-visible:ring-primary/20"
+                className="min-h-[320px] resize-y rounded-2xl bg-card/30 border-border/50 p-6 text-base leading-relaxed focus-visible:ring-primary/20"
                 value={docInput}
                 onChange={(e) => setDocInput(e.target.value)}
               />
@@ -251,7 +400,8 @@ export default function ValidatorPage() {
               </Button>
             </div>
 
-            <div className="space-y-4">
+            {/* Right col */}
+            <div className="space-y-4 min-w-0">
               <Label className="text-base font-semibold">Resultado da Análise</Label>
               <Card className="min-h-[400px] rounded-2xl border-border/50 bg-card/30 backdrop-blur-sm overflow-hidden flex flex-col">
                 {!valResult && !validateMutation.isPending && (
@@ -273,9 +423,9 @@ export default function ValidatorPage() {
                 {valResult && (
                   <ScrollArea className="flex-1">
                     <div className="p-6 space-y-8">
-                      {/* Score Section */}
+                      {/* Score */}
                       <div className="flex items-center gap-6 p-5 rounded-2xl bg-card border border-border shadow-sm">
-                        <div className="relative flex items-center justify-center w-20 h-20">
+                        <div className="relative flex items-center justify-center w-20 h-20 shrink-0">
                           <svg className="w-full h-full transform -rotate-90">
                             <circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-muted/50" />
                             <circle cx="40" cy="40" r="36" stroke="currentColor" strokeWidth="8" fill="transparent"
@@ -309,7 +459,7 @@ export default function ValidatorPage() {
                               {s.type === 'error' ? <XCircle className="w-5 h-5 shrink-0 mt-0.5" /> :
                                s.type === 'warning' ? <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" /> :
                                <Info className="w-5 h-5 shrink-0 mt-0.5" />}
-                              <div className="space-y-1">
+                              <div className="space-y-1 min-w-0">
                                 <p className="font-semibold text-sm">{s.message}</p>
                                 {s.suggestion && <p className="text-sm opacity-90">{s.suggestion}</p>}
                                 <Badge variant="outline" className="mt-2 bg-background/50">{s.section}</Badge>
@@ -335,11 +485,11 @@ export default function ValidatorPage() {
                           <div className="grid gap-2">
                             {valResult.extractedFields.map((f, i) => (
                               <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-                                <div className="flex items-center gap-3">
-                                  <Database className="w-4 h-4 text-muted-foreground" />
-                                  <span className="font-mono text-sm">{f.tableName}.<strong>{f.fieldName}</strong></span>
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <Database className="w-4 h-4 text-muted-foreground shrink-0" />
+                                  <span className="font-mono text-sm truncate">{f.tableName}.<strong>{f.fieldName}</strong></span>
                                 </div>
-                                <Badge variant="secondary">{f.module}</Badge>
+                                <Badge variant="secondary" className="shrink-0 ml-2">{f.module}</Badge>
                               </div>
                             ))}
                           </div>
@@ -368,15 +518,14 @@ export default function ValidatorPage() {
           </div>
         </TabsContent>
 
-
         {/* GENERATE TAB */}
         <TabsContent value="generate" className="space-y-6 focus-visible:outline-none focus-visible:ring-0">
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-            <div className="xl:col-span-5 space-y-4">
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 min-w-0">
+            <div className="xl:col-span-5 space-y-4 min-w-0">
               <Label className="text-base font-semibold">Resolução do Dev (Card Jira)</Label>
               <Textarea 
                 placeholder="Cole aqui o que o desenvolvedor relatou no card. Ex: Corrigido bug na tela de cadastro, adicionado campo 'status_cliente' na tabela 'clientes'..."
-                className="min-h-[500px] resize-y rounded-2xl bg-card/30 border-border/50 p-6 text-base leading-relaxed focus-visible:ring-primary/20"
+                className="min-h-[480px] resize-y rounded-2xl bg-card/30 border-border/50 p-6 text-base leading-relaxed focus-visible:ring-primary/20"
                 value={cardInput}
                 onChange={(e) => setCardInput(e.target.value)}
               />
@@ -389,9 +538,9 @@ export default function ValidatorPage() {
               </Button>
             </div>
 
-            <div className="xl:col-span-7 space-y-4">
+            <div className="xl:col-span-7 space-y-4 min-w-0">
               <Label className="text-base font-semibold">Documentação Gerada (Formato Outline)</Label>
-              <Card className="min-h-[500px] rounded-2xl border-border/50 bg-card/30 backdrop-blur-sm flex flex-col overflow-hidden">
+              <Card className="min-h-[480px] rounded-2xl border-border/50 bg-card/30 backdrop-blur-sm flex flex-col overflow-hidden">
                 {!genResult && !generateMutation.isPending && (
                   <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
                     <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
@@ -412,7 +561,7 @@ export default function ValidatorPage() {
                   <>
                     <div className="border-b border-border p-3 bg-card flex items-center justify-between shrink-0 gap-2 flex-wrap">
                       <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
-                        <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-0 max-w-[260px] truncate block">
+                        <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-0 max-w-[200px] truncate block">
                           Módulo: {genResult.inferredModule || moduleInput || 'N/A'}
                         </Badge>
                         {genResult.extractedFields.length > 0 && (

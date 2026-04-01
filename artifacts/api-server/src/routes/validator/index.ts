@@ -160,11 +160,15 @@ router.post("/validate", async (req, res) => {
     res.status(400).json({ error: "Corpo inválido" });
     return;
   }
-  const { documentation, module } = parsed.data;
+  const { documentation, module, customInstructions } = parsed.data;
+
+  const customCtx = (customInstructions ?? []).filter(Boolean).length > 0
+    ? `\n\nInstruções adicionais do usuário:\n${(customInstructions!).map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+    : "";
 
   try {
     // Call 1: compact JSON with metadata only (score, suggestions, fields, keywords)
-    const analysisPrompt = `${SYSTEM_CONTEXT}
+    const analysisPrompt = `${SYSTEM_CONTEXT}${customCtx}
 
 Módulo informado: ${module ?? "não informado"}
 
@@ -215,7 +219,7 @@ Mantenha os arrays curtos (máx 5 itens cada). Sem texto antes ou depois do JSON
     }
 
     // Call 2: plain text formatted doc — NO JSON wrapping, avoids truncation issue
-    const formatPrompt = `${SYSTEM_CONTEXT}
+    const formatPrompt = `${SYSTEM_CONTEXT}${customCtx}
 
 Módulo: ${analysis.inferredModule ?? module ?? "não informado"}
 
@@ -259,11 +263,15 @@ router.post("/generate", async (req, res) => {
     res.status(400).json({ error: "Corpo inválido" });
     return;
   }
-  const { cardContent, module } = parsed.data;
+  const { cardContent, module, customInstructions } = parsed.data;
+
+  const customCtx = (customInstructions ?? []).filter(Boolean).length > 0
+    ? `\n\nInstruções adicionais do usuário:\n${(customInstructions!).map((c, i) => `${i + 1}. ${c}`).join("\n")}`
+    : "";
 
   try {
     // Call 1: compact JSON metadata — fields + keywords only
-    const metaPrompt = `${SYSTEM_CONTEXT}
+    const metaPrompt = `${SYSTEM_CONTEXT}${customCtx}
 
 Módulo informado: ${module ?? "não informado (infira do conteúdo)"}
 
@@ -306,7 +314,7 @@ Mantenha extractedFields com máx 10 itens. Sem texto antes ou depois do JSON.`;
     }
 
     // Call 2: plain text documentation — NO JSON, avoids truncation
-    const docPrompt = `${SYSTEM_CONTEXT}
+    const docPrompt = `${SYSTEM_CONTEXT}${customCtx}
 
 Módulo: ${meta.inferredModule ?? module ?? "não informado"}
 
