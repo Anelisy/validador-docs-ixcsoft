@@ -410,16 +410,16 @@ export default function ValidatorPage() {
 
                 {genResult && (
                   <>
-                    <div className="border-b border-border p-4 bg-card flex items-center justify-between shrink-0">
-                      <div className="flex items-center gap-3">
-                        <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-0">
+                    <div className="border-b border-border p-3 bg-card flex items-center justify-between shrink-0 gap-2 flex-wrap">
+                      <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+                        <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-0 max-w-[260px] truncate block">
                           Módulo: {genResult.inferredModule || moduleInput || 'N/A'}
                         </Badge>
                         {genResult.extractedFields.length > 0 && (
-                          <Badge variant="outline">{genResult.extractedFields.length} campos detectados</Badge>
+                          <Badge variant="outline" className="shrink-0">{genResult.extractedFields.length} campos detectados</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         {genResult.extractedFields.length > 0 && (
                           <Button size="sm" variant="ghost" className="gap-1.5 text-primary rounded-lg" onClick={() => navigate("/mindmap")}>
                             <Network className="w-3.5 h-3.5" /> Ver no Mapa
