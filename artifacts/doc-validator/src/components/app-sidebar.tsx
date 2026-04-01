@@ -1,4 +1,4 @@
-import { BookOpenCheck, Network, History, HelpCircle, LogOut, Shield, Users, KeyRound } from "lucide-react";
+import { BookOpenCheck, Network, History, HelpCircle, LogOut, Shield, Users, KeyRound, SlidersHorizontal, Plus, Trash2 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -15,7 +15,8 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
-import { useState } from "react";
+import { usePrompts } from "@/contexts/prompts-context";
+import { useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -221,38 +223,15 @@ function ChangePasswordDialog() {
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div className="space-y-1.5">
             <Label htmlFor="current-pw">Senha atual</Label>
-            <Input
-              id="current-pw"
-              type="password"
-              placeholder="••••••••"
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-              required
-            />
+            <Input id="current-pw" type="password" placeholder="••••••••" value={current} onChange={(e) => setCurrent(e.target.value)} required />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="new-pw">Nova senha</Label>
-            <Input
-              id="new-pw"
-              type="password"
-              placeholder="••••••••"
-              value={next}
-              onChange={(e) => setNext(e.target.value)}
-              required
-              minLength={6}
-            />
+            <Input id="new-pw" type="password" placeholder="••••••••" value={next} onChange={(e) => setNext(e.target.value)} required minLength={6} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="confirm-pw">Confirmar nova senha</Label>
-            <Input
-              id="confirm-pw"
-              type="password"
-              placeholder="••••••••"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
-              minLength={6}
-            />
+            <Input id="confirm-pw" type="password" placeholder="••••••••" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={6} />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Salvando..." : "Salvar nova senha"}
@@ -260,6 +239,73 @@ function ChangePasswordDialog() {
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ──────────────────────────────────────────────
+// Prompts panel — lives inside the sidebar
+// ──────────────────────────────────────────────
+function SidebarPromptsPanel() {
+  const { prompts, add, remove } = usePrompts();
+  const [input, setInput] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleAdd = () => {
+    add(input);
+    setInput("");
+    inputRef.current?.focus();
+  };
+
+  return (
+    <SidebarGroup className="px-0">
+      <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 mb-2 px-2 flex items-center gap-2">
+        <SlidersHorizontal className="w-3.5 h-3.5" />
+        Instruções IA
+        {prompts.length > 0 && (
+          <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-auto">{prompts.length}</Badge>
+        )}
+      </SidebarGroupLabel>
+      <SidebarGroupContent className="px-2 space-y-2">
+        {/* Add new prompt */}
+        <div className="flex gap-1.5">
+          <Input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+            placeholder="Adicionar instrução..."
+            className="h-8 text-xs rounded-lg bg-background/50 border-border/50 flex-1"
+          />
+          <Button
+            size="sm"
+            onClick={handleAdd}
+            disabled={!input.trim()}
+            className="h-8 w-8 px-0 rounded-lg shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+
+        {/* Prompt list */}
+        {prompts.length === 0 && (
+          <p className="text-[11px] text-muted-foreground/50 italic px-1">Nenhuma instrução adicionada.</p>
+        )}
+        <div className="space-y-1 max-h-48 overflow-y-auto">
+          {prompts.map((p, i) => (
+            <div key={i} className="flex items-start gap-1.5 p-2 rounded-lg bg-card/60 border border-border/30 group">
+              <span className="text-[10px] text-primary font-bold mt-0.5 shrink-0">{i + 1}.</span>
+              <span className="text-xs flex-1 leading-snug text-muted-foreground break-words">{p}</span>
+              <button
+                onClick={() => remove(i)}
+                className="p-0.5 rounded text-muted-foreground/30 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100 shrink-0 mt-0.5"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }
 
@@ -283,7 +329,8 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-2 flex flex-col gap-4">
+        {/* Navigation */}
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 mb-2">
             Navegação
@@ -316,6 +363,11 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Custom AI prompts */}
+        <div className="border-t border-border/30 pt-3">
+          <SidebarPromptsPanel />
+        </div>
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-border/50 space-y-3">

@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { 
   CheckCircle2, 
@@ -14,18 +13,13 @@ import {
   Link,
   Loader2,
   X,
-  Plus,
-  ChevronDown,
-  ChevronUp,
-  SlidersHorizontal,
-  Trash2,
 } from "lucide-react";
 import { useValidateDoc, useGenerateDoc } from "@workspace/api-client-react";
 import type { ValidationResult, GeneratedDoc } from "@workspace/api-client-react/src/generated/api.schemas";
 import { useQueryClient } from "@tanstack/react-query";
 import { useHistory } from "@/hooks/use-history";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/auth-context";
+import { usePrompts } from "@/contexts/prompts-context";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,131 +30,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MarkdownPreview } from "@/components/markdown-preview";
-
-// ──────────────────────────────────────────────
-// Custom prompts — per user, stored in localStorage
-// ──────────────────────────────────────────────
-function useCustomPrompts(userEmail: string | undefined) {
-  const key = `custom_prompts_${userEmail ?? "guest"}`;
-
-  const [prompts, setPrompts] = useState<string[]>(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try { localStorage.setItem(key, JSON.stringify(prompts)); } catch {}
-  }, [prompts, key]);
-
-  const add = (text: string) => {
-    const t = text.trim();
-    if (!t) return;
-    setPrompts(prev => [...prev, t]);
-  };
-
-  const remove = (idx: number) => setPrompts(prev => prev.filter((_, i) => i !== idx));
-
-  return { prompts, add, remove };
-}
-
-// ──────────────────────────────────────────────
-// Custom Prompts Panel
-// ──────────────────────────────────────────────
-function CustomPromptsPanel({ userEmail }: { userEmail: string | undefined }) {
-  const [open, setOpen] = useState(false);
-  const [input, setInput] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const { prompts, add, remove } = useCustomPrompts(userEmail);
-
-  const handleAdd = () => {
-    add(input);
-    setInput("");
-    inputRef.current?.focus();
-  };
-
-  return (
-    <div className="rounded-2xl border border-border/50 bg-card/20 backdrop-blur-sm overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-card/30 transition-colors"
-      >
-        <div className="flex items-center gap-2.5">
-          <SlidersHorizontal className="w-4 h-4 text-primary" />
-          <span className="text-sm font-semibold">Instruções Personalizadas</span>
-          {prompts.length > 0 && (
-            <Badge variant="secondary" className="text-xs h-5 px-1.5">{prompts.length}</Badge>
-          )}
-        </div>
-        {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-5 pb-4 space-y-3 border-t border-border/30">
-              <p className="text-xs text-muted-foreground pt-3">
-                Estas instruções são enviadas à IA em todas as análises e gerações desta sessão.
-              </p>
-
-              {/* Add new prompt */}
-              <div className="flex gap-2">
-                <Input
-                  ref={inputRef}
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") handleAdd(); }}
-                  placeholder="Ex: Foque em regras de validação de campos obrigatórios..."
-                  className="h-9 text-sm rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/20 flex-1"
-                />
-                <Button
-                  size="sm"
-                  onClick={handleAdd}
-                  disabled={!input.trim()}
-                  className="h-9 px-3 rounded-xl shrink-0"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
-
-              {/* Prompt list */}
-              {prompts.length > 0 && (
-                <div className="space-y-1.5">
-                  {prompts.map((p, i) => (
-                    <div key={i} className="flex items-start gap-2 p-2.5 rounded-xl bg-card/60 border border-border/40 group">
-                      <span className="text-xs text-primary font-bold mt-0.5 shrink-0">{i + 1}.</span>
-                      <span className="text-sm flex-1 leading-snug">{p}</span>
-                      <button
-                        onClick={() => remove(i)}
-                        className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100 shrink-0"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {prompts.length === 0 && (
-                <p className="text-xs text-muted-foreground/60 italic">Nenhuma instrução adicionada.</p>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
 
 export default function ValidatorPage() {
   const [activeTab, setActiveTab] = useState<"validate" | "generate">("validate");
@@ -181,13 +50,11 @@ export default function ValidatorPage() {
   const { addEntry } = useHistory();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
-  const { user } = useAuth();
 
   const validateMutation = useValidateDoc();
   const generateMutation = useGenerateDoc();
 
-  // Custom prompts from localStorage (per user)
-  const { prompts: customPrompts } = useCustomPrompts(user?.email);
+  const { prompts: customPrompts } = usePrompts();
 
   const invalidateFields = () => queryClient.invalidateQueries({ queryKey: ["/api/fields"] });
 
@@ -309,11 +176,6 @@ export default function ValidatorPage() {
         <p className="text-muted-foreground mt-2 text-lg">
           Valide documentações existentes ou gere novas a partir de cards do Jira com IA.
         </p>
-      </div>
-
-      {/* Custom prompts panel — shared across both tabs */}
-      <div className="mb-6">
-        <CustomPromptsPanel userEmail={user?.email} />
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">

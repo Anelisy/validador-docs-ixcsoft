@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import { PromptsProvider } from "@/contexts/prompts-context";
 import { AppSidebar } from "@/components/app-sidebar";
 import ValidatorPage from "@/pages/validator-page";
 import MindmapPage from "@/pages/mindmap-page";
@@ -87,7 +88,9 @@ function App() {
       <TooltipProvider>
         <div className="dark bg-background text-foreground min-h-screen font-sans selection:bg-primary/30">
           <AuthProvider>
-            <AppShell />
+            <PromptsProvider>
+              <AppShell />
+            </PromptsProvider>
           </AuthProvider>
           <Toaster />
         </div>
