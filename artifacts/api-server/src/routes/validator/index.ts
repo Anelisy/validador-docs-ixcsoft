@@ -10,8 +10,8 @@ const router: IRouter = Router();
 const SYSTEM_CONTEXT = `Você é um especialista em documentação técnica para sistemas ERP (IXC Soft). Seu papel é transformar insumos técnicos em documentação semântica detalhada e reutilizável, pronta para o Outline.
 
 Regras:
-- Inferir o módulo quando não vier explicitamente e declarar a inferência
-- Não inventar nomes de tabelas, funções, endpoints ou campos sem evidência; usar "não informado" ou "(inferência)"
+- Inferir o módulo silenciosamente quando não vier explicitamente — NUNCA escreva "(inferência)", "(infer)", "inferido" ou qualquer variante no texto
+- Quando não houver evidência de um dado, use apenas "não informado" — PROIBIDO usar "(inferência)" em qualquer parte do texto
 - Priorizar regra de negócio e impacto sistêmico
 - Tom profissional, técnico e descritivo (texto será consumido por IA)
 - SEM prefácio conversacional ou metacomentários`;
@@ -91,6 +91,16 @@ async function searchWiki(query: string): Promise<Array<{title: string, url: str
   } catch {
     return [];
   }
+}
+
+// Remove any "(inferência)" variants that slip through the AI prompt
+function cleanInferencia(text: string): string {
+  return text
+    .replace(/\s*\(infer[eê]ncia\)/gi, "")
+    .replace(/\s*\(inferido\)/gi, "")
+    .replace(/\s*\(infer\)/gi, "")
+    .replace(/\binferido por IA\b/gi, "")
+    .trim();
 }
 
 type RawField = { fieldName: string; tableName: string; sectionName?: string; module: string; description?: string; fieldType?: string };
@@ -228,7 +238,7 @@ Retorne APENAS o markdown da documentação, sem JSON, sem explicações adicion
       missingFields: analysis.missingFields ?? [],
       wikiMatches,
       extractedFields: analysis.extractedFields ?? [],
-      formattedDoc: formattedDoc.trim() || null,
+      formattedDoc: cleanInferencia(formattedDoc.trim()) || null,
       savedFieldsCount,
     });
   } catch (err) {
@@ -312,8 +322,8 @@ Retorne APENAS o markdown da documentação, sem JSON, sem explicações adicion
     ]);
 
     res.json({
-      documentation: documentation.trim(),
-      inferredModule: meta.inferredModule ?? module ?? "Não identificado",
+      documentation: cleanInferencia(documentation.trim()),
+      inferredModule: cleanInferencia(meta.inferredModule ?? module ?? "Não identificado"),
       extractedFields: meta.extractedFields ?? [],
       wikiMatches,
       savedFieldsCount,
