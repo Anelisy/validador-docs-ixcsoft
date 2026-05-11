@@ -1,17 +1,30 @@
 /**
  * Custom fetch com fallback para mock
- * Substitui as chamadas de API pela versão mock quando a API não estiver disponível
+ * Tenta fazer chamadas reais para a API, se falhar usa o mock
  */
 
 import { mockValidateDoc, mockGenerateDoc } from "./mock-validation";
+import { API_URL, IS_ONLINE_MODE } from "@/config/api";
 
 const originalFetch = globalThis.fetch;
 
 export async function customFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = typeof input === "string" ? input : input.toString();
 
-  // Mock para validação
-  if (url.includes("/api/validator/validate")) {
+  // Se em modo online, tenta usar a API real primeiro
+  if (IS_ONLINE_MODE && API_URL) {
+    try {
+      const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+      const response = await originalFetch(fullUrl, init);
+      return response;
+    } catch (error) {
+      console.warn(`Failed to fetch from API: ${url}, falling back to mock`, error);
+      // Continua para o mock fallback abaixo
+    }
+  }
+
+  // Mock para validação (fallback)
+  if (url.includes("/validator/validate")) {
     try {
       const body = init?.body ? JSON.parse(init.body as string) : {};
       const result = mockValidateDoc(
@@ -32,7 +45,7 @@ export async function customFetch(input: RequestInfo | URL, init?: RequestInit):
   }
 
   // Mock para geração
-  if (url.includes("/api/validator/generate")) {
+  if (url.includes("/validator/generate")) {
     try {
       const body = init?.body ? JSON.parse(init.body as string) : {};
       const result = mockGenerateDoc(
@@ -53,7 +66,7 @@ export async function customFetch(input: RequestInfo | URL, init?: RequestInit):
   }
 
   // Mock para status de autenticação
-  if (url.includes("/api/auth/status")) {
+  if (url.includes("/auth/status")) {
     return new Response(JSON.stringify({ hasUsers: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -61,7 +74,7 @@ export async function customFetch(input: RequestInfo | URL, init?: RequestInit):
   }
 
   // Mock para dados do usuário
-  if (url.includes("/api/auth/me")) {
+  if (url.includes("/auth/me")) {
     return new Response(
       JSON.stringify({
         id: 1,
@@ -77,7 +90,7 @@ export async function customFetch(input: RequestInfo | URL, init?: RequestInit):
   }
 
   // Mock para listar campos
-  if (url.includes("/api/fields")) {
+  if (url.includes("/fields")) {
     return new Response(JSON.stringify({ fields: [] }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
