@@ -12,9 +12,11 @@ if (rawPort && (Number.isNaN(port) || port <= 0)) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-const rawBasePath = process.env.BASE_PATH?.trim() || (process.env.NODE_ENV === 'production' ? '/validador-docs-ixcsoft/' : '/');
+const rawBasePath = process.env.BASE_PATH?.trim() || (process.env.NODE_ENV === 'production' ? './' : '/');
 const basePath = rawBasePath === "/"
   ? "/"
+  : rawBasePath === "./"
+  ? "./"
   : `/${rawBasePath.replace(/^\/+/g, "").replace(/\/+$/g, "")}/`;
 
 export default defineConfig({
