@@ -1,5 +1,9 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
+/**
+ * Contexto de Autenticação Simplificado para o Mockup Sandbox
+ * Funciona offline sem dependências de API
+ */
+
+import { createContext, useContext, ReactNode } from "react";
 
 export type AuthUser = {
   id: number;
@@ -18,57 +22,27 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const TOKEN_KEY = "doc_validator_auth_token";
-const API_BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
+const MOCK_USER: AuthUser = {
+  id: 1,
+  email: "user@validador.local",
+  name: "Usuário",
+  isAdmin: false,
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    setAuthTokenGetter(() => localStorage.getItem(TOKEN_KEY));
-
-    const stored = localStorage.getItem(TOKEN_KEY);
-    if (!stored) {
-      setIsLoading(false);
-      return;
-    }
-
-    fetch(`${API_BASE()}/auth/me`, {
-      headers: { Authorization: `Bearer ${stored}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) {
-          setUser(data);
-          setToken(stored);
-        } else {
-          localStorage.removeItem(TOKEN_KEY);
-          setToken(null);
-        }
-      })
-      .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
-        setToken(null);
-      })
-      .finally(() => setIsLoading(false));
-  }, []);
-
-  const login = (newToken: string, newUser: AuthUser) => {
-    localStorage.setItem(TOKEN_KEY, newToken);
-    setToken(newToken);
-    setUser(newUser);
-  };
-
-  const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    setToken(null);
-    setUser(null);
-  };
+  const login = () => {};
+  const logout = () => {};
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider
+      value={{
+        user: MOCK_USER,
+        token: "mock-token",
+        login,
+        logout,
+        isLoading: false,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

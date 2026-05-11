@@ -1,7 +1,6 @@
-import DocValidatorApp from "./App";
+/**
+ * @deprecated Este arquivo é mantido apenas por compatibilidade.
+ * Use App.tsx em vez disso.
+ */
 
-function App() {
-  return <DocValidatorApp />;
-}
-
-export default App;
+export { default } from "./App";
