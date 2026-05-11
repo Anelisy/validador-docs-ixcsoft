@@ -1,4 +1,4 @@
-import DocValidatorApp from "./DocValidatorApp";
+import DocValidatorApp from "./App";
 
 function App() {
   return <DocValidatorApp />;

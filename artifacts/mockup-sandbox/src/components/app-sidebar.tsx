@@ -1,0 +1,421 @@
+import { BookOpenCheck, Network, History, HelpCircle, LogOut, Shield, Users, KeyRound, SlidersHorizontal, Plus, Trash2 } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+  SidebarFooter,
+} from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/auth-context";
+import { usePrompts } from "@/contexts/prompts-context";
+import { useRef, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+const API_BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
+
+const navItems = [
+  { title: "Validador", url: "/", icon: BookOpenCheck },
+  { title: "Mapa de Campos", url: "/mindmap", icon: Network },
+  { title: "Histórico", url: "/history", icon: History },
+];
+
+type UserRecord = { id: number; email: string; name: string; isAdmin: boolean; createdAt: string };
+
+function UsersDialog() {
+  const { token } = useAuth();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const { data: users = [] } = useQuery<UserRecord[]>({
+    queryKey: ["auth-users"],
+    queryFn: () =>
+      fetch(`${API_BASE()}/auth/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => r.json()),
+  });
+
+  const createUser = useMutation({
+    mutationFn: (body: object) =>
+      fetch(`${API_BASE()}/auth/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d; }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["auth-users"] });
+      setNewEmail(""); setNewName(""); setNewPassword(""); setIsAdmin(false);
+      toast({ title: "Usuário criado com sucesso." });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: (id: number) =>
+      fetch(`${API_BASE()}/auth/users/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(async (r) => { if (!r.ok) throw new Error((await r.json()).error); }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["auth-users"] });
+      toast({ title: "Usuário removido." });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <DialogContent className="max-w-lg">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <Users className="w-4 h-4" /> Gerenciar Usuários
+        </DialogTitle>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        <div className="border border-border/50 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-medium text-muted-foreground">Adicionar usuário</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">Nome</Label>
+              <Input placeholder="Nome completo" value={newName} onChange={(e) => setNewName(e.target.value)} className="h-8 text-sm" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">E-mail</Label>
+              <Input type="email" placeholder="email@ixcsoft.com.br" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="h-8 text-sm" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Senha temporária (mín. 6 caracteres)</Label>
+            <Input type="password" placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="h-8 text-sm" />
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="isAdmin" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} className="rounded" />
+            <Label htmlFor="isAdmin" className="text-xs cursor-pointer">Administrador (pode gerenciar usuários)</Label>
+          </div>
+          <Button
+            size="sm"
+            className="w-full"
+            disabled={!newEmail || !newName || !newPassword || createUser.isPending}
+            onClick={() => createUser.mutate({ email: newEmail, name: newName, password: newPassword, isAdmin })}
+          >
+            {createUser.isPending ? "Criando..." : "Criar usuário"}
+          </Button>
+        </div>
+
+        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+          {users.map((u) => (
+            <div key={u.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/30 border border-border/30">
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-medium truncate">{u.name}</span>
+                <span className="text-xs text-muted-foreground truncate">{u.email}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 ml-2">
+                {u.isAdmin && (
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Admin</span>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => deleteUser.mutate(u.id)}
+                  disabled={deleteUser.isPending}
+                >
+                  Remover
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </DialogContent>
+  );
+}
+
+function ChangePasswordDialog() {
+  const { user, token } = useAuth();
+  const { toast } = useToast();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (next !== confirm) {
+      toast({ title: "As senhas não coincidem.", variant: "destructive" });
+      return;
+    }
+    if (next.length < 6) {
+      toast({ title: "A nova senha deve ter ao menos 6 caracteres.", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const loginRes = await fetch(`${API_BASE()}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user?.email, password: current }),
+      });
+      if (!loginRes.ok) {
+        toast({ title: "Senha atual incorreta.", variant: "destructive" });
+        return;
+      }
+
+      const res = await fetch(`${API_BASE()}/auth/users/${user?.id}/password`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password: next }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        toast({ title: "Erro", description: d.error, variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Senha alterada com sucesso!" });
+      setCurrent(""); setNext(""); setConfirm("");
+      setOpen(false);
+    } catch {
+      toast({ title: "Erro de conexão.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/50 transition-colors text-sm text-muted-foreground hover:text-foreground w-full">
+          <KeyRound className="w-4 h-4" />
+          <span className="font-medium">Alterar senha</span>
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="w-4 h-4" /> Alterar Senha
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="current-pw">Senha atual</Label>
+            <Input id="current-pw" type="password" placeholder="••••••••" value={current} onChange={(e) => setCurrent(e.target.value)} required />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="new-pw">Nova senha</Label>
+            <Input id="new-pw" type="password" placeholder="••••••••" value={next} onChange={(e) => setNext(e.target.value)} required minLength={6} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm-pw">Confirmar nova senha</Label>
+            <Input id="confirm-pw" type="password" placeholder="••••••••" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={6} />
+          </div>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Salvando..." : "Salvar nova senha"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ──────────────────────────────────────────────
+// Prompts panel — lives inside the sidebar
+// ──────────────────────────────────────────────
+function SidebarPromptsPanel() {
+  const { prompts, add, remove } = usePrompts();
+  const [input, setInput] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleAdd = () => {
+    add(input);
+    setInput("");
+    inputRef.current?.focus();
+  };
+
+  return (
+    <SidebarGroup className="px-0">
+      <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 mb-2 px-2 flex items-center gap-2">
+        <SlidersHorizontal className="w-3.5 h-3.5" />
+        Instruções IA
+        {prompts.length > 0 && (
+          <Badge variant="secondary" className="text-[10px] h-4 px-1.5 ml-auto">{prompts.length}</Badge>
+        )}
+      </SidebarGroupLabel>
+      <SidebarGroupContent className="px-2 space-y-2">
+        {/* Add new prompt */}
+        <div className="flex gap-1.5">
+          <Input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+            placeholder="Adicionar instrução..."
+            className="h-8 text-xs rounded-lg bg-background/50 border-border/50 flex-1"
+          />
+          <Button
+            size="sm"
+            onClick={handleAdd}
+            disabled={!input.trim()}
+            className="h-8 w-8 px-0 rounded-lg shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+
+        {/* Prompt list */}
+        {prompts.length === 0 && (
+          <p className="text-[11px] text-muted-foreground/50 italic px-1">Nenhuma instrução adicionada.</p>
+        )}
+        <div className="space-y-1 max-h-48 overflow-y-auto">
+          {prompts.map((p, i) => (
+            <div key={i} className="flex items-start gap-1.5 p-2 rounded-lg bg-card/60 border border-border/30 group">
+              <span className="text-[10px] text-primary font-bold mt-0.5 shrink-0">{i + 1}.</span>
+              <span className="text-xs flex-1 leading-snug text-muted-foreground break-words">{p}</span>
+              <button
+                onClick={() => remove(i)}
+                className="p-0.5 rounded text-muted-foreground/30 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100 shrink-0 mt-0.5"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+export function AppSidebar() {
+  const [location] = useLocation();
+  const { user, logout } = useAuth();
+
+  const initials = user?.name
+    ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
+    : "?";
+
+  return (
+    <Sidebar className="border-r-border/50 bg-card/50 backdrop-blur-xl">
+      <SidebarHeader className="p-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
+          <BookOpenCheck className="w-5 h-5 text-primary-foreground" />
+        </div>
+        <div className="flex flex-col">
+          <h2 className="font-display font-bold text-base leading-tight">Validador</h2>
+          <span className="text-xs text-muted-foreground font-medium">Documentação IA</span>
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent className="px-2 flex flex-col gap-4">
+        {/* Navigation */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 mb-2">
+            Navegação
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              {navItems.map((item) => {
+                const isActive = location === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      className={`
+                        transition-all duration-200 rounded-xl py-5
+                        ${isActive
+                          ? "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary font-semibold shadow-sm"
+                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                        }
+                      `}
+                    >
+                      <Link href={item.url} className="flex items-center gap-3 w-full">
+                        <item.icon className={`w-5 h-5 ${isActive ? "text-primary" : ""}`} />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Custom AI prompts */}
+        <div className="border-t border-border/30 pt-3">
+          <SidebarPromptsPanel />
+        </div>
+      </SidebarContent>
+
+      <SidebarFooter className="p-4 border-t border-border/50 space-y-3">
+        <a
+          href="https://wiki-erp.ixcsoft.com.br/documentacao/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/50 transition-colors text-sm text-muted-foreground hover:text-foreground"
+        >
+          <HelpCircle className="w-4 h-4" />
+          <span className="font-medium">Wiki IXC</span>
+        </a>
+
+        <ChangePasswordDialog />
+
+        {user?.isAdmin && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <button className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/50 transition-colors text-sm text-muted-foreground hover:text-foreground w-full">
+                <Shield className="w-4 h-4" />
+                <span className="font-medium">Usuários</span>
+              </button>
+            </DialogTrigger>
+            <UsersDialog />
+          </Dialog>
+        )}
+
+        <div className="flex items-center gap-3 p-2">
+          <Avatar className="w-9 h-9 border border-border/50 ring-2 ring-background shrink-0">
+            <AvatarFallback className="bg-primary/20 text-primary font-bold text-xs">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-sm font-semibold truncate">{user?.name ?? "Usuário"}</span>
+            <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={logout}
+            className="shrink-0 w-8 h-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            title="Sair"
+          >
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
