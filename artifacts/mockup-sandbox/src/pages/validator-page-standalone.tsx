@@ -5,6 +5,13 @@ import {
   Info,
   Copy,
   Sparkles,
+  BookOpen,
+  Shield,
+  Zap,
+  Users,
+  Github,
+  ExternalLink,
+  X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -32,6 +39,18 @@ export default function ValidatorPageStandalone() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const { toast } = useToast();
+
+  const clearValidation = () => {
+    setDocInput("");
+    setValResult(null);
+    setModuleInput("");
+  };
+
+  const clearGeneration = () => {
+    setCardInput("");
+    setGenResult(null);
+    setModuleInput("");
+  };
 
   const handleValidate = async () => {
     if (!docInput.trim()) {
@@ -104,14 +123,65 @@ export default function ValidatorPageStandalone() {
   };
 
   return (
-    <div className="dark min-h-screen bg-background text-foreground p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="dark min-h-screen bg-background text-foreground">
+      {/* Header Profissional */}
+      <header className="border-b bg-card/50 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
+                <BookOpen className="w-6 h-6 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">IXC Soft</h1>
+                <p className="text-sm text-muted-foreground">Validador de Documentação Técnica</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  <span>Seguro</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4" />
+                  <span>Rápido</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  <span>Para Equipes</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://github.com/Anelisy/validador-docs-ixcsoft" target="_blank" rel="noopener noreferrer">
+                    <Github className="w-4 h-4 mr-2" />
+                    GitHub
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a href="https://ixcsoft.com" target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    IXC Soft
+                  </a>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Conteúdo Principal */}
+      <main className="max-w-6xl mx-auto p-4 md:p-8">
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">
-            Validador de Documentação
-          </h1>
-          <p className="text-muted-foreground">
-            Valide e gere documentação de forma offline
+          <h2 className="text-3xl md:text-4xl font-bold mb-2">
+            Validador de Documentação Técnica
+          </h2>
+          <p className="text-muted-foreground text-lg">
+            Valide e gere documentação técnica automaticamente com inteligência artificial.
+            Garanta qualidade e consistência em suas especificações de API e sistemas.
           </p>
         </div>
 
@@ -153,24 +223,35 @@ export default function ValidatorPageStandalone() {
                   />
                 </div>
 
-                <Button
-                  onClick={handleValidate}
-                  disabled={isValidating}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isValidating ? (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4 animate-spin" />
-                      Validando...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                      Validar Documentação
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleValidate}
+                    disabled={isValidating}
+                    className="flex-1"
+                    size="lg"
+                  >
+                    {isValidating ? (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4 animate-spin" />
+                        Validando...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        Validar Documentação
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    onClick={clearValidation}
+                    variant="outline"
+                    size="lg"
+                    disabled={isValidating}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
               {/* Results Section */}
@@ -308,24 +389,35 @@ export default function ValidatorPageStandalone() {
                   />
                 </div>
 
-                <Button
-                  onClick={handleGenerate}
-                  disabled={isGenerating}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4 animate-spin" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Gerar Documentação
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    className="flex-1"
+                    size="lg"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Gerar Documentação
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    onClick={clearGeneration}
+                    variant="outline"
+                    size="lg"
+                    disabled={isGenerating}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
 
               {/* Results Section */}
@@ -410,7 +502,50 @@ export default function ValidatorPageStandalone() {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t bg-card/30 mt-16">
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="grid md:grid-cols-3 gap-8">
+            <div>
+              <h3 className="font-semibold mb-3">IXC Soft</h3>
+              <p className="text-sm text-muted-foreground">
+                Plataforma especializada em validação e geração automática de documentação técnica para sistemas de gestão.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-3">Recursos</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li><a href="#" className="hover:text-foreground transition-colors">Validação de APIs</a></li>
+                <li><a href="#" className="hover:text-foreground transition-colors">Geração de Documentação</a></li>
+                <li><a href="#" className="hover:text-foreground transition-colors">Análise com IA</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-semibold mb-3">Contato</h3>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>suporte@ixcsoft.com</li>
+                <li>+55 (11) 9999-9999</li>
+                <li>São Paulo, SP</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t mt-8 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-sm text-muted-foreground">
+              © 2024 IXC Soft. Todos os direitos reservados.
+            </p>
+            <div className="flex gap-4 text-sm text-muted-foreground">
+              <a href="#" className="hover:text-foreground transition-colors">Termos de Uso</a>
+              <a href="#" className="hover:text-foreground transition-colors">Política de Privacidade</a>
+              <a href="#" className="hover:text-foreground transition-colors">Suporte</a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
