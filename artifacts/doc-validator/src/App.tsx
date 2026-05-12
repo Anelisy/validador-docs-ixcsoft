@@ -242,7 +242,7 @@ export default function App() {
     }
 
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -418,7 +418,7 @@ export default function App() {
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[550px]">
                     <div className="flex justify-between items-center mb-4">
                       <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                        <MessageSquare size={14} className="text-blue-600" /> Input
+                        <MessageSquare size={14} className="text-blue-600" /> Campo de Input
                       </label>
                       <div className="flex gap-2">
                         {skills.length > 0 && (
@@ -459,11 +459,18 @@ export default function App() {
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[550px]">
                     <div className="flex justify-between items-center mb-4">
                       <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                        <Bot size={14} className="text-blue-600" /> Output
+                        <Bot size={14} className="text-blue-600" /> Resultado da IA
                       </label>
                       <button 
                         type="button"
-                        onClick={() => { navigator.clipboard.writeText(outputText); }}
+                        onClick={() => {
+                          const el = document.createElement('textarea');
+                          el.value = outputText;
+                          document.body.appendChild(el);
+                          el.select();
+                          document.execCommand('copy');
+                          document.body.removeChild(el);
+                        }}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 rounded-lg text-[10px] font-bold transition border border-slate-100"
                       >
                         <Copy size={14} /> COPIAR
@@ -543,21 +550,24 @@ export default function App() {
                     setSkills([...skills, { id: Date.now(), name, prompt }]);
                     e.currentTarget.reset();
                   }} className="space-y-4">
-                    <input name="skill_name" placeholder="Nome da Skill (Ex: Redação Técnica ACS)" required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none" />
-                    <textarea name="skill_prompt" placeholder="Instruções específicas para a IA (O prompt de skill)..." required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm min-h-[100px] outline-none" />
-                    <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-lg hover:bg-slate-800 transition">Salvar Skill</button>
+                    <input name="skill_name" placeholder="Ex: Redação Técnica ACS Nível 2" required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                    <textarea name="skill_prompt" placeholder="Ex: Sempre use uma linguagem mais formal e detalhe cada passo técnico..." required className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm min-h-[100px] outline-none focus:ring-2 focus:ring-blue-500" />
+                    <button type="submit" className="w-full bg-slate-900 text-white font-bold py-3 rounded-lg hover:bg-slate-800 transition text-xs tracking-widest">ADICIONAR SKILL</button>
                   </form>
                 </div>
 
-                <div className="grid gap-4">
+                <div className="grid sm:grid-cols-2 gap-4">
                   {skills.map((s) => (
-                    <div key={s.id} className="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                    <div key={s.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
                       <div>
-                        <p className="font-bold text-slate-900">{s.name}</p>
-                        <p className="text-xs text-slate-400 line-clamp-1">{s.prompt}</p>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Bot size={16} className="text-blue-600" />
+                          <p className="font-bold text-slate-900 text-sm">{s.name}</p>
+                        </div>
+                        <p className="text-xs text-slate-500 line-clamp-3 bg-slate-50 p-2 rounded border border-slate-100 italic">"{s.prompt}"</p>
                       </div>
-                      <button type="button" onClick={() => setSkills(skills.filter((sk) => sk.id !== s.id))} className="text-red-400 hover:bg-red-50 p-2 rounded-lg transition">
-                        <Trash2 size={18} />
+                      <button type="button" onClick={() => setSkills(skills.filter((sk) => sk.id !== s.id))} className="mt-4 text-red-500 hover:bg-red-50 py-2 rounded-lg transition text-[10px] font-bold flex items-center justify-center gap-2">
+                        <Trash2 size={12} /> REMOVER
                       </button>
                     </div>
                   ))}
@@ -567,14 +577,20 @@ export default function App() {
 
             {activeTab === 'user' && (
               <div className="max-w-md mx-auto bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
-                <h3 className="text-xl font-bold mb-6">Configurações de Conta</h3>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Alterar Senha</label>
-                    <input type="password" placeholder="Senha Atual" className="w-full mb-3 bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm" />
-                    <input type="password" placeholder="Nova Senha" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm" />
+                <div className="flex flex-col items-center mb-8">
+                  <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-3xl mb-4">
+                    {user.name.charAt(0).toUpperCase()}
                   </div>
-                  <button type="button" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-blue-600/10">Atualizar Credenciais</button>
+                  <h3 className="text-xl font-bold">{user.name}</h3>
+                  <p className="text-sm text-slate-400 font-mono">{user.email}</p>
+                </div>
+                <div className="space-y-6 pt-6 border-t border-slate-100">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Segurança</h4>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-2">Nova Senha</label>
+                    <input type="password" placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <button type="button" className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg shadow-blue-600/10 hover:bg-blue-700 transition text-xs">ATUALIZAR SENHA</button>
                 </div>
               </div>
             )}
