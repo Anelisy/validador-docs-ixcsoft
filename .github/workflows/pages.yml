@@ -50,7 +50,9 @@ jobs:
 
       - name: Build GitHub Pages site
         run: |
+          echo "GEMINI_KEY_SET=${{ secrets.VITE_GEMINI_API_KEY != '' }}" 
           echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" >> artifacts/mockup-sandbox/.env.production
+          cat artifacts/mockup-sandbox/.env.production
           pnpm run build:github-pages
 
       - name: Configure GitHub Pages
