@@ -50,6 +50,8 @@ jobs:
 
       - name: Build GitHub Pages site
         run: pnpm run build:github-pages
+        env:
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v4
