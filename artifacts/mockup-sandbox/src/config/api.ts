@@ -4,22 +4,21 @@
  */
 
 export const API_URL = (() => {
-  // Em desenvolvimento local, use localhost
+  const envUrl = process.env.VITE_API_URL;
+
   if (process.env.NODE_ENV === 'development') {
-    return process.env.VITE_API_URL || 'http://localhost:3000/api';
+    return envUrl || 'http://localhost:3000/api';
   }
 
-  // Em produção no GitHub Pages, use a URL da API Railway/Render
-  const apiUrl = process.env.VITE_API_URL;
-  
-  if (!apiUrl) {
-    console.warn(
-      'VITE_API_URL não configurada. Usando modo offline.'
-    );
-    return null;
+  if (envUrl) {
+    return envUrl;
   }
 
-  return apiUrl;
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin.replace(/\/$/, '')}/api`;
+  }
+
+  return null;
 })();
 
 export const IS_ONLINE_MODE = !!API_URL;
