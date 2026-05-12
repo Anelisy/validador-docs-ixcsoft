@@ -6,11 +6,6 @@ import {
   Copy,
   Sparkles,
   BookOpen,
-  Shield,
-  Zap,
-  Users,
-  Github,
-  ExternalLink,
   X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -124,54 +119,6 @@ export default function ValidatorPageStandalone() {
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
-      {/* Header Profissional */}
-      <header className="border-b bg-card/50 backdrop-blur-sm">
-        <div className="max-w-6xl mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-                <BookOpen className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">IXC Soft</h1>
-                <p className="text-sm text-muted-foreground">Validador de Documentação Técnica</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4" />
-                  <span>Seguro</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4" />
-                  <span>Rápido</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  <span>Para Equipes</span>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" asChild>
-                  <a href="https://github.com/Anelisy/validador-docs-ixcsoft" target="_blank" rel="noopener noreferrer">
-                    <Github className="w-4 h-4 mr-2" />
-                    GitHub
-                  </a>
-                </Button>
-                <Button variant="outline" size="sm" asChild>
-                  <a href="https://ixcsoft.com" target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    IXC Soft
-                  </a>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* Conteúdo Principal */}
       <main className="max-w-6xl mx-auto p-4 md:p-8">
