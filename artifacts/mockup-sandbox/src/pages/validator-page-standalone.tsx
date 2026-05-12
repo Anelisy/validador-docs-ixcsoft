@@ -268,12 +268,12 @@ ${selectedSkill ? `APLIQUE ESTA SKILL PERSONALIZADA: ${selectedSkill}` : ""}`;
         </header>
 
         {/* CONTENT */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-950 pb-20 md:pb-8">
-          <div className="max-w-6xl mx-auto">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-950 pb-20 md:pb-6">
+          <div className="w-full h-full">
 
             {/* ── HOME ── */}
             {activeTab === "home" && (
-              <div className="space-y-4 md:space-y-6">
+              <div className="flex flex-col gap-4 md:gap-5">
                 {/* operation + template selectors */}
                 <div className="flex flex-col sm:flex-row flex-wrap gap-3">
                   <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 self-start">
@@ -298,10 +298,10 @@ ${selectedSkill ? `APLIQUE ESTA SKILL PERSONALIZADA: ${selectedSkill}` : ""}`;
                   )}
                 </div>
 
-                {/* input + output — stack on mobile, side-by-side on lg */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                {/* input + output — stack on mobile, side-by-side on md+ */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                   {/* INPUT */}
-                  <div className="bg-slate-900 p-4 md:p-6 rounded-2xl border border-slate-800 flex flex-col">
+                  <div className="bg-slate-900 p-4 md:p-5 rounded-2xl border border-slate-800 flex flex-col">
                     <div className="flex justify-between items-center mb-3">
                       <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
                         <MessageSquare size={14} className="text-blue-500" /> Campo de Input
@@ -321,7 +321,7 @@ ${selectedSkill ? `APLIQUE ESTA SKILL PERSONALIZADA: ${selectedSkill}` : ""}`;
                     </div>
                     <textarea value={inputText} onChange={(e) => setInputText(e.target.value)}
                       placeholder={operationType === "validar" ? "Cole aqui o texto para validar..." : "Cole aqui o input do Jira/Rovo..."}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-sm resize-none focus:ring-2 focus:ring-blue-500 outline-none transition font-sans leading-relaxed text-slate-200 placeholder:text-slate-600 min-h-[200px] md:min-h-[380px]"
+                      className="flex-1 w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-sm resize-none focus:ring-2 focus:ring-blue-500 outline-none transition font-sans leading-relaxed text-slate-200 placeholder:text-slate-600 min-h-[180px]"
                     />
                     <button type="button" onClick={callGemini} disabled={loading || !inputText}
                       className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold py-3 md:py-4 rounded-xl shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-3 text-sm">
@@ -333,7 +333,7 @@ ${selectedSkill ? `APLIQUE ESTA SKILL PERSONALIZADA: ${selectedSkill}` : ""}`;
                   </div>
 
                   {/* OUTPUT */}
-                  <div className="bg-slate-900 p-4 md:p-6 rounded-2xl border border-slate-800 flex flex-col">
+                  <div className="bg-slate-900 p-4 md:p-5 rounded-2xl border border-slate-800 flex flex-col">
                     <div className="flex justify-between items-center mb-3">
                       <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
                         <Bot size={14} className="text-blue-500" /> Resultado da IA
@@ -343,7 +343,7 @@ ${selectedSkill ? `APLIQUE ESTA SKILL PERSONALIZADA: ${selectedSkill}` : ""}`;
                         <Copy size={14} /> COPIAR
                       </button>
                     </div>
-                    <div className="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-sm overflow-y-auto whitespace-pre-wrap font-sans leading-relaxed text-slate-300 min-h-[200px] md:min-h-[380px]">
+                    <div className="flex-1 w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-sm overflow-y-auto whitespace-pre-wrap font-sans leading-relaxed text-slate-300 min-h-[180px]">
                       {outputText || (
                         <div className="h-full flex flex-col items-center justify-center text-slate-600 gap-3 py-12">
                           <Sparkles size={36} className="opacity-30" />
