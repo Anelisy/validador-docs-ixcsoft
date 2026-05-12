@@ -48,12 +48,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Inject Gemini API Key
+        run: echo "VITE_GEMINI_API_KEY=$GEMINI_KEY" >> artifacts/mockup-sandbox/.env.production
+        env:
+          GEMINI_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+
       - name: Build GitHub Pages site
-        run: |
-          echo "GEMINI_KEY_SET=${{ secrets.VITE_GEMINI_API_KEY != '' }}" 
-          echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" >> artifacts/mockup-sandbox/.env.production
-          cat artifacts/mockup-sandbox/.env.production
-          pnpm run build:github-pages
+        run: pnpm run build:github-pages
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v4
