@@ -49,7 +49,13 @@ jobs:
         run: pnpm install
 
       - name: Inject Gemini API Key
-        run: echo "VITE_GEMINI_API_KEY=$GEMINI_KEY" >> artifacts/mockup-sandbox/.env.production
+        run: |
+          if [ -z "$GEMINI_KEY" ]; then
+            echo "ERROR: VITE_GEMINI_API_KEY secret is empty or not set!"
+            exit 1
+          fi
+          echo "VITE_GEMINI_API_KEY=$GEMINI_KEY" >> artifacts/mockup-sandbox/.env.production
+          echo "Key injected successfully (length: ${#GEMINI_KEY})"
         env:
           GEMINI_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
 
