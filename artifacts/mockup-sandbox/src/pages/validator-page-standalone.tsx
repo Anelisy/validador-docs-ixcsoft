@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
-const API_KEY = "";
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
 
 const TEMPLATES = {
   GERAL: `Título
@@ -148,6 +148,10 @@ export default function ValidatorPageStandalone() {
 
   const callGemini = async () => {
     if (!inputText) return;
+    if (!API_KEY) {
+      alert("Chave da API do Gemini não configurada. Defina a variável VITE_GEMINI_API_KEY.");
+      return;
+    }
     setLoading(true);
     let systemPrompt = "";
     if (operationType === "validar") {
