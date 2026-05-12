@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { 
   CheckCircle2, 
@@ -20,6 +20,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useHistory } from "@/hooks/use-history";
 import { useToast } from "@/hooks/use-toast";
 import { usePrompts } from "@/contexts/prompts-context";
+
+const TEMPLATES = {
+  GERAL: "Título\nIntrodução\nDesenvolvimento\nCONSIDERAÇÕES FINAIS\nLeia também",
+  CADASTRO: "Cadastro de X\nIntrodução\n[!NOTE] Acesso ao formulário: Menu > item > formulário.\nEntrega de Valor\nEstrutura do Formulário\nCasos de Uso\nConsiderações Finais\nLeia também",
+  HOMOLOGACAO: "title:\npublicado: false\nrevisado: false\n---\nModelo\nIntrodução\n[!INFO] Importante\nPré-Configuração\nAções no Dispositivo\nInternet\nLAN\nInterfaces Wi-Fi\nDispositivos Conectados\nConsiderações Finais\nLeia Também",
+} as const;
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +51,8 @@ export default function ValidatorPage() {
   // Generation State
   const [cardInput, setCardInput] = useState("");
   const [genResult, setGenResult] = useState<GeneratedDoc | null>(null);
+  const [template, setTemplate] = useState<keyof typeof TEMPLATES>("GERAL");
+  const [selectedPromptIndex, setSelectedPromptIndex] = useState<number>(-1);
 
   const { toast } = useToast();
   const { addEntry } = useHistory();
@@ -55,6 +63,29 @@ export default function ValidatorPage() {
   const generateMutation = useGenerateDoc();
 
   const { prompts: customPrompts } = usePrompts();
+  const selectedPrompt = selectedPromptIndex >= 0 && selectedPromptIndex < customPrompts.length ? customPrompts[selectedPromptIndex] : undefined;
+
+  const buildCustomInstructions = () => {
+    const instructions: string[] = [];
+
+    if (selectedPrompt) {
+      instructions.push(selectedPrompt);
+    } else if (customPrompts.length > 0) {
+      instructions.push(...customPrompts);
+    }
+
+    if (activeTab === "generate" && template) {
+      instructions.push(`Use o modelo de documentação abaixo como estrutura:\n${TEMPLATES[template]}`);
+    }
+
+    return instructions.length > 0 ? instructions : undefined;
+  };
+
+  useEffect(() => {
+    if (selectedPromptIndex >= customPrompts.length) {
+      setSelectedPromptIndex(-1);
+    }
+  }, [customPrompts, selectedPromptIndex]);
 
   const invalidateFields = () => queryClient.invalidateQueries({ queryKey: ["/api/fields"] });
 
@@ -69,7 +100,7 @@ export default function ValidatorPage() {
         data: {
           documentation: docInput,
           module: moduleInput || undefined,
-          customInstructions: customPrompts.length > 0 ? customPrompts : undefined,
+          customInstructions: buildCustomInstructions(),
         }
       });
       setValResult(result);
@@ -107,7 +138,7 @@ export default function ValidatorPage() {
         data: {
           cardContent: cardInput,
           module: moduleInput || undefined,
-          customInstructions: customPrompts.length > 0 ? customPrompts : undefined,
+          customInstructions: buildCustomInstructions(),
         }
       });
       setGenResult(result);
@@ -384,10 +415,45 @@ export default function ValidatorPage() {
         <TabsContent value="generate" className="space-y-6 focus-visible:outline-none focus-visible:ring-0">
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 min-w-0">
             <div className="xl:col-span-5 space-y-4 min-w-0">
-              <Label className="text-base font-semibold">Resolução do Dev (Card Jira)</Label>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-base font-semibold">Resolução do Dev (Card Jira)</Label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Modelo de Outline</Label>
+                    <select
+                      value={template}
+                      onChange={(e) => setTemplate(e.target.value as keyof typeof TEMPLATES)}
+                      className="w-full rounded-2xl border border-border/50 bg-background/60 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary/30"
+                    >
+                      <option value="GERAL">Wiki Geral</option>
+                      <option value="CADASTRO">Cadastro ERP</option>
+                      <option value="HOMOLOGACAO">Homologação ACS</option>
+                    </select>
+                  </div>
+                  {customPrompts.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">Skill personalizada</Label>
+                      <select
+                        value={selectedPromptIndex}
+                        onChange={(e) => setSelectedPromptIndex(Number(e.target.value))}
+                        className="w-full rounded-2xl border border-border/50 bg-background/60 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary/30"
+                      >
+                        <option value={-1}>Usar todas as skills</option>
+                        {customPrompts.map((prompt, index) => (
+                          <option key={index} value={index}>
+                            {prompt.length > 60 ? `${prompt.slice(0, 60)}...` : prompt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
               <Textarea 
                 placeholder="Cole aqui o que o desenvolvedor relatou no card. Ex: Corrigido bug na tela de cadastro, adicionado campo 'status_cliente' na tabela 'clientes'..."
-                className="min-h-[480px] resize-y rounded-2xl bg-card/30 border-border/50 p-6 text-base leading-relaxed focus-visible:ring-primary/20"
+                className="min-h-[420px] resize-y rounded-2xl bg-card/30 border-border/50 p-6 text-base leading-relaxed focus-visible:ring-primary/20"
                 value={cardInput}
                 onChange={(e) => setCardInput(e.target.value)}
               />
