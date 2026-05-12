@@ -49,9 +49,9 @@ jobs:
         run: pnpm install
 
       - name: Build GitHub Pages site
-        run: pnpm run build:github-pages
-        env:
-          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+        run: |
+          echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" >> artifacts/mockup-sandbox/.env.production
+          pnpm run build:github-pages
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v4
