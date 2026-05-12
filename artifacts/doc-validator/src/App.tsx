@@ -117,6 +117,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [users, setUsers] = useState<Array<{ email: string; name: string; birthDate: string; password: string; fullName: string }>>([]);
   const [selectedSkill, setSelectedSkill] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -130,6 +131,9 @@ export default function App() {
 
     const savedSkills = localStorage.getItem('ixc_skills');
     if (savedSkills) setSkills(JSON.parse(savedSkills));
+
+    const savedUsers = localStorage.getItem('ixc_users');
+    if (savedUsers) setUsers(JSON.parse(savedUsers));
   }, []);
 
   useEffect(() => {
@@ -141,24 +145,72 @@ export default function App() {
   }, [skills]);
 
   // --- LÓGICA DE AUTH ---
+  const saveUsers = (nextUsers: typeof users) => {
+    setUsers(nextUsers);
+    localStorage.setItem('ixc_users', JSON.stringify(nextUsers));
+  };
+
   const handleAuth = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const email = String(formData.get('email') || '');
-    
+    const email = String(formData.get('email') || '').trim().toLowerCase();
+    const password = String(formData.get('password') || '');
+    const birthDate = String(formData.get('birthdate') || '');
+    const fullName = String(formData.get('fullname') || '').trim();
+
     if (!email.endsWith('@ixcsoft.com.br')) {
       alert('Acesso restrito a e-mails @ixcsoft.com.br');
       return;
     }
 
-    const userData = { 
-      email, 
-      name: email.split('@')[0].replace('.', ' '),
-      birthDate: String(formData.get('birthdate') || ''),
-    };
+    if (authMode === 'login') {
+      const existing = users.find((u) => u.email === email);
+      if (!existing) {
+        alert('Usuário não encontrado. Cadastre-se primeiro.');
+        return;
+      }
+      if (existing.password !== password) {
+        alert('Senha incorreta.');
+        return;
+      }
+      setUser({ email, name: existing.name, birthDate: existing.birthDate });
+      localStorage.setItem('ixc_user', JSON.stringify({ email, name: existing.name, birthDate: existing.birthDate }));
+      return;
+    }
 
-    setUser(userData);
-    localStorage.setItem('ixc_user', JSON.stringify(userData));
+    if (authMode === 'register') {
+      if (!password || !birthDate) {
+        alert('Para cadastro, informe senha e data de nascimento.');
+        return;
+      }
+      if (users.some((u) => u.email === email)) {
+        alert('Este e-mail já está cadastrado. Faça login.');
+        return;
+      }
+      const name = email.split('@')[0].replace('.', ' ');
+      const nextUser = { email, name, birthDate, password, fullName: name };
+      saveUsers([...users, nextUser]);
+      setUser({ email, name, birthDate });
+      localStorage.setItem('ixc_user', JSON.stringify({ email, name, birthDate }));
+      return;
+    }
+
+    if (authMode === 'reset') {
+      if (!password || !birthDate || !fullName) {
+        alert('Para redefinir a senha, confirme e-mail, nome completo, data de nascimento e nova senha.');
+        return;
+      }
+      const existing = users.find((u) => u.email === email && u.birthDate === birthDate && u.fullName.toLowerCase() === fullName.toLowerCase());
+      if (!existing) {
+        alert('Dados não conferem com nenhum usuário cadastrado.');
+        return;
+      }
+      const updated = users.map((u) => u.email === email ? { ...u, password } : u);
+      saveUsers(updated);
+      alert('Senha redefinida com sucesso. Agora faça login.');
+      setAuthMode('login');
+      return;
+    }
   };
 
   const logout = () => {
@@ -234,30 +286,34 @@ export default function App() {
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">E-mail Institucional</label>
               <input name="email" type="email" required placeholder="seu.nome@ixcsoft.com.br" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition" />
             </div>
-            
-            {(authMode === 'register' || authMode === 'reset') && (
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Senha</label>
+              <input name="password" type="password" required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+
+            {authMode === 'register' && (
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nascimento</label>
+                <input name="birthdate" type="date" required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+              </div>
+            )}
+
+            {authMode === 'reset' && (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Senha</label>
-                    <input name="password" type="password" required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nascimento</label>
-                    <input name="birthdate" type="date" required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
-                  </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label>
+                  <input name="fullname" type="text" required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
-                {authMode === 'reset' && (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo</label>
-                    <input name="fullname" type="text" required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
-                )}
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nascimento</label>
+                  <input name="birthdate" type="date" required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm" />
+                </div>
               </>
             )}
 
             <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-blue-600/20 transition-all uppercase tracking-wider text-sm">
-              {authMode === 'login' ? 'Entrar' : authMode === 'register' ? 'Cadastrar' : 'Confirmar Dados'}
+              {authMode === 'login' ? 'Entrar' : authMode === 'register' ? 'Cadastrar' : 'Redefinir Senha'}
             </button>
           </form>
 
@@ -362,7 +418,7 @@ export default function App() {
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[550px]">
                     <div className="flex justify-between items-center mb-4">
                       <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                        <MessageSquare size={14} className="text-blue-600" /> Campo de Input
+                        <MessageSquare size={14} className="text-blue-600" /> Input
                       </label>
                       <div className="flex gap-2">
                         {skills.length > 0 && (
@@ -403,7 +459,7 @@ export default function App() {
                   <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[550px]">
                     <div className="flex justify-between items-center mb-4">
                       <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                        <Bot size={14} className="text-blue-600" /> Resultado da IA
+                        <Bot size={14} className="text-blue-600" /> Output
                       </label>
                       <button 
                         type="button"
