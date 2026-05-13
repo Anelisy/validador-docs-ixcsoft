@@ -172,13 +172,17 @@ AÇÕES:
 4. Gere 1 ou 2 perguntas de forma IMPESSOAL que podem ser respondidas lendo o trecho do texto.
 Contexto: Reduzir tempo de busca e edição de documentação.`;
     } else {
-      systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft.
+      systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress.
 Gere a documentação EXATAMENTE seguindo a estrutura do template abaixo. Regras obrigatórias:
 - Não invente seções, não altere a ordem, não remova campos
 - Nas tabelas, mantenha EXATAMENTE os nomes das colunas do template
 - A ordem das colunas nas tabelas é: primeiro o nome da funcionalidade, depois os status com emojis, depois observações
 - Use os emojis da legenda: ✅ Disponível | ❌ Indisponível | ❓ Requer verificação | ❕ Parcial
 - Se não houver informação para um campo, deixe em branco
+- PRESERVE EXATAMENTE a sintaxe de containers do VitePress como: [!NOTE], [!INFO], [!WARNING], [!TIP], [!DANGER] — esses blocos são obrigatórios e devem aparecer exatamente como no template, incluindo o > antes de cada linha do bloco
+- Exemplo correto de container VitePress:
+> [!NOTE] Título
+> Conteúdo da nota aqui.
 
 TEMPLATE A SER SEGUIDO:
 ${TEMPLATES[template]}
