@@ -251,8 +251,8 @@ ${selectedSkill ? `APLIQUE ESTA SKILL: ${selectedSkill}` : ""}`;
 
     try {
       const response = await fetch(
-`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
-{
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
+        {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -273,7 +273,7 @@ ${selectedSkill ? `APLIQUE ESTA SKILL: ${selectedSkill}` : ""}`;
       const data = await response.json();
 
       const resultText =
-data.candidates?.[0]?.content?.parts?.[0]?.text ??
+        data.candidates?.[0]?.content?.parts?.[0]?.text ??
         "Não foi possível gerar resposta.";
 
       setOutputText(resultText);
@@ -294,7 +294,7 @@ data.candidates?.[0]?.content?.parts?.[0]?.text ??
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   const copyOutput = () => {
     navigator.clipboard.writeText(outputText);
@@ -377,64 +377,35 @@ data.candidates?.[0]?.content?.parts?.[0]?.text ??
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          (
+          {activeTab === "home" && (
             <div className="flex flex-col gap-5">
-              
-    </div>
+              <div className="flex flex-wrap gap-3">
+                <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setOperationType("validar")}
+                    className={`px-5 py-2 rounded-lg text-xs font-bold ${
+                      operationType === "validar"
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-400"
+                    }`}
+                  >
+                    VALIDAR
+                  </button>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-      {/* Resto do código permanece igual */}
-      <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col">
-        {/* ... mesmo código do textarea e botão ... */}
-      </div>
+                  <button
+                    type="button"
+                    onClick={() => setOperationType("gerar")}
+                    className={`px-5 py-2 rounded-lg text-xs font-bold ${
+                      operationType === "gerar"
+                        ? "bg-blue-600 text-white"
+                        : "text-slate-400"
+                    }`}
+                  >
+                    GERAR
+                  </button>
+                </div>
 
-      <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col">
-        {/* ... mesmo código do resultado ... */}
-      </div>
-    </div>
-<div className="flex flex-wrap gap-3">
-  <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
-    <button
-      type="button"
-      onClick={() => setOperationType("validar")}
-      className={`px-5 py-2 rounded-lg text-xs font-bold ${operationType === "validar" ? "bg-blue-600 text-white" : "text-slate-400"}`}
-    >
-      VALIDAR
-    </button>
-
-    <button
-      type="button"
-      onClick={() => setOperationType("gerar")}
-      className={`px-5 py-2 rounded-lg text-xs font-bold ${operationType === "gerar" ? "bg-blue-600 text-white" : "text-slate-400"}`}
-    >
-      GERAR
-    </button>
-  </div>
-
-  <select
-    value={template}
-    onChange={(e) => setTemplate(e.target.value as keyof typeof TEMPLATES)}
-    className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-300"
-  >
-    <option value="GERAL">Template: Geral</option>
-    <option value="CADASTRO">Template: Cadastro</option>
-    <option value="HOMOLOGACAO">Template: Homologação</option>
-  </select>
-
-  <select
-    value={selectedSkill}
-    onChange={(e) => setSelectedSkill(e.target.value)}
-    className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-300"
-  >
-    <option value="">Sem skill específica</option>
-    {skills.map((skill) => (
-      <option key={skill.id} value={skill.prompt}>
-        {skill.name} ({skill.category})
-      </option>
-    ))}
-  </select>
-</div>
-                {/* Seletor de Template */}
                 <select
                   value={template}
                   onChange={(e) => setTemplate(e.target.value as keyof typeof TEMPLATES)}
@@ -445,21 +416,84 @@ data.candidates?.[0]?.content?.parts?.[0]?.text ??
                   <option value="HOMOLOGACAO">Template: Homologação</option>
                 </select>
 
-                {/* Seletor de Skills */}
-                {skills.length > 0 && (
-                  <select
-                    value={selectedSkill}
-                    onChange={(e) => setSelectedSkill(e.target.value)}
-                    className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-300"
+                <select
+                  value={selectedSkill}
+                  onChange={(e) => setSelectedSkill(e.target.value)}
+                  className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-300"
+                >
+                  <option value="">Sem skill específica</option>
+                  {skills.map((skill) => (
+                    <option key={skill.id} value={skill.prompt}>
+                      {skill.name} ({skill.category})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                      <MessageSquare size={14} />
+                      Campo de Input
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => setInputText("")}
+                      className="p-1 text-slate-600 hover:text-red-500"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <textarea
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder="Cole aqui..."
+                    className="flex-1 w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-sm resize-none outline-none min-h-[200px]"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={callGemini}
+                    disabled={loading || !inputText}
+                    className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-800 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3"
                   >
-                    <option value="">Sem skill específica</option>
-                    {skills.map((skill) => (
-                      <option key={skill.id} value={skill.prompt}>
-                        {skill.name} ({skill.category})
-                      </option>
-                    ))}
-                  </select>
-                )}
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Bot size={18} />
+                        {operationType === "validar"
+                          ? "VALIDAR INFORMAÇÃO"
+                          : "GERAR DOCUMENTAÇÃO"}
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                      <Bot size={14} />
+                      Resultado
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={copyOutput}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg text-xs"
+                    >
+                      <Copy size={14} />
+                      COPIAR
+                    </button>
+                  </div>
+
+                  <div className="flex-1 bg-slate-800 border border-slate-700 rounded-xl p-4 whitespace-pre-wrap text-sm overflow-y-auto min-h-[200px]">
+                    {outputText || "Aguardando solicitação..."}
+                  </div>
+                </div>
               </div>
             </div>
           )}
