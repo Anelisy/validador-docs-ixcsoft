@@ -461,7 +461,9 @@ data.candidates?.[0]?.content?.parts?.[0]?.text ??
                   </select>
                 )}
               </div>
-  </div>
+            </div>
+          )}
+
           {activeTab === "skills" && (
             <div className="max-w-3xl mx-auto space-y-6">
               <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
@@ -588,7 +590,7 @@ data.candidates?.[0]?.content?.parts?.[0]?.text ??
                 </div>
               )}
             </div>
-             )}
+          )}
         </main>
       </div>
     </div>
