@@ -165,8 +165,11 @@ AÇÕES:
 Contexto: Reduzir tempo de busca e edição de documentação.`;
     } else {
       systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft.
-Utilize o padrão de template: ${template}.
-CONTEXTO: Baseie-se no input do Jira/Rovo: ${inputText}.
+Gere a documentação EXATAMENTE seguindo a estrutura do template abaixo. Não invente seções, não altere a ordem, não remova campos. Preencha apenas com as informações disponíveis no input — se não houver informação para um campo, deixe em branco.
+
+TEMPLATE A SER SEGUIDO:
+${TEMPLATES[template]}
+
 TOM DE VOZ: Técnico, qualidade IXC Provedor/ACS, mas compreensível para o cliente final.
 ${selectedSkill ? `APLIQUE ESTA SKILL PERSONALIZADA: ${selectedSkill}` : ""}`;
     }
