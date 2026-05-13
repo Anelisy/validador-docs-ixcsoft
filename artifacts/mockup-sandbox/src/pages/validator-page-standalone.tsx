@@ -14,6 +14,8 @@ import {
   Sparkles,
   Layout,
   Database,
+  Check,
+  ExternalLink,
 } from "lucide-react";
 
 import { useAuth } from "@/contexts/auth-context";
@@ -170,6 +172,7 @@ export default function ValidatorPageStandalone() {
   const [inputText, setInputText] = useState("");
   const [outputText, setOutputText] = useState("");
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -199,7 +202,15 @@ export default function ValidatorPageStandalone() {
     localStorage.setItem("ixc_skills", JSON.stringify(skills));
   }, [skills]);
 
-const callGemini = async () => {
+  // Toast de copiado
+  useEffect(() => {
+    if (copied) {
+      const timer = setTimeout(() => setCopied(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [copied]);
+
+  const callGemini = async () => {
     if (!inputText) return;
 
     if (!API_KEY) {
@@ -214,18 +225,44 @@ const callGemini = async () => {
     let systemPrompt = "";
 
     if (operationType === "validar") {
-      systemPrompt = `Você é um Analista de Documentação da IXCsoft para VitePress.
+      systemPrompt = `Você é um Analista de Documentação Técnica da IXCsoft, especialista em validar documentações para a Central de Ajuda (VitePress).
 
-OBJETIVO:
-Validar o texto colado com base nas documentações das centrais.
+CONTEXTO:
+A IXCsoft possui uma Central de Ajuda com documentações técnicas sobre:
+- Sistemas (ERP, Provedor, ACS, etc.)
+- Cadastros e formulários
+- Configurações e parametrizações
+- Homologação de dispositivos
+- Wiki técnica
 
-AÇÕES:
-- Indique exatamente onde o analista deve alterar a informação.
-- Indique quais links da Wiki ou Central ACS são relevantes.
-- Forneça uma sugestão de texto aprimorada.
-- Gere 1 ou 2 perguntas impessoais sobre o conteúdo.
+OBJETIVO DA VALIDAÇÃO:
+Analisar o texto fornecido e comparar com as documentações existentes na Central de Ajuda IXCsoft.
 
-FORMATAÇÃO VITEPRESS (use estes containers quando apropriado):
+AÇÕES INSTRUTIVAS (seja específico e didático):
+
+1. **ANÁLISE DE CONFORMIDADE:**
+   - Verifique se o conteúdo está alinhado com as documentações oficiais
+   - Identifique divergências ou informações desatualizadas
+
+2. **ONDE ALTERAR (seja preciso):**
+   - Indique EXATAMENTE em qual parágrafo/seção a alteração é necessária
+   - Exemplo: "No parágrafo 'Introdução', adicione: ..."
+   - Exemplo: "Na seção 'Estrutura do formulário', altere a tabela para: ..."
+
+3. **LINKS DE REFERÊNCIA:**
+   - SEMPRE forneça links relevantes da Central de Ajuda IXCsoft
+   - Links do tipo: https://central.ixcsoft.com.br/...
+   - Mencione documentações relacionadas que possam ajudar
+
+4. **SUGESTÕES DE MELHORIA:**
+   - Texto sugerido para substituição
+   - Tabelas ou formatação recomendada
+   - Containers VitePress apropriados
+
+5. **PERGUNTAS DE VALIDAÇÃO:**
+   - Gere 1-2 perguntas impessoais para confirmar o entendimento
+
+FORMATAÇÃO VITEPRESS (use quando apropriado):
 > [!NOTE] ✏️ Para informações gerais ou notas adicionais.
 > [!TIP] 🔥 Para dicas úteis ou sugestões.
 > [!WARNING] ⚠️ Para avisos ou alertas sobre possíveis problemas.
@@ -236,10 +273,16 @@ FORMATAÇÃO VITEPRESS (use estes containers quando apropriado):
 > [!EXAMPLE] 🗒️ Para fornecer exemplos práticos ou ilustrativos.
 > [!FAIL] ❌ Para indicar erros.
 
-Template:
+LEMBRE-SE:
+- Seja INSTRUTIVO: diga exatamente onde e o que alterar
+- Forneça LINKS REAIS da central de ajuda quando possível
+- Aceite emojis, tabelas e símbolos especiais na análise
+- Mantenha um tom profissional mas didático
+
+Template de referência:
 ${TEMPLATES[template]}
 
-${selectedSkill ? `APLIQUE ESTA SKILL: ${selectedSkill}` : ""}`;
+${selectedSkill ? `SKILL ESPECÍFICA A APLICAR: ${selectedSkill}` : ""}`;
     } else {
       systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress.
 
@@ -248,6 +291,7 @@ REGRAS:
 - Não altere a ordem do template
 - Preserve containers VitePress
 - Utilize os containers de formatação VitePress quando apropriado
+- Aceite e utilize emojis, tabelas e símbolos especiais quando relevante
 
 CONTAINERS VITEPRESS DISPONÍVEIS:
 > [!NOTE] ✏️ Para informações gerais ou notas adicionais.
@@ -263,7 +307,7 @@ CONTAINERS VITEPRESS DISPONÍVEIS:
 Template:
 ${TEMPLATES[template]}
 
-${selectedSkill ? `APLIQUE ESTA SKILL: ${selectedSkill}` : ""}`;
+${selectedSkill ? `SKILL ESPECÍFICA A APLICAR: ${selectedSkill}` : ""}`;
     }
 
     try {
@@ -315,12 +359,21 @@ ${selectedSkill ? `APLIQUE ESTA SKILL: ${selectedSkill}` : ""}`;
 
   const copyOutput = () => {
     navigator.clipboard.writeText(outputText);
+    setCopied(true);
   };
 
   const displayName = user?.name ?? "Usuário";
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-950 text-slate-200">
+      {/* Toast de Copiado */}
+      {copied && (
+        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in">
+          <Check size={18} />
+          <span className="font-bold text-sm">Copiado!</span>
+        </div>
+      )}
+
       <aside
         className={`hidden md:flex flex-col bg-slate-900 border-r border-slate-800 transition-all duration-300 ${
           sidebarOpen ? "w-64" : "w-20"
@@ -467,7 +520,7 @@ ${selectedSkill ? `APLIQUE ESTA SKILL: ${selectedSkill}` : ""}`;
                   <textarea
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Cole aqui..."
+                    placeholder="Cole aqui seu texto... ✅ 📝 📊 Suporta emojis, tabelas e símbolos!"
                     className="flex-1 w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-sm resize-none outline-none min-h-[200px]"
                   />
 
@@ -500,7 +553,7 @@ ${selectedSkill ? `APLIQUE ESTA SKILL: ${selectedSkill}` : ""}`;
                     <button
                       type="button"
                       onClick={copyOutput}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 rounded-lg text-xs"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition"
                     >
                       <Copy size={14} />
                       COPIAR
