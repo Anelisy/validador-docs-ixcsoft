@@ -74,10 +74,18 @@ Legenda: ✅ Disponível | ❌ Indisponível | ❓ Requer verificação | ❕ Pa
 
 Funcionalidade | Gerenciável via IXC ACS | Observações
 --- | --- | ---
-NTP | |
-Wi-Fi | |
+NTP | ✅ |
+Wi-Fi | ✅ |
 
 [!NOTE] Acesso à funcionalidade
+> Caminho: Menu Ferramentas > Pré Configuração do dispositivo.
+
+Considerações Finais
+Um breve resumo sobre tudo o que foi discutido.
+
+Leia Também
+Comparativo Homologações
+Guia - Termos de Homologação de Dispositivos`,
 > Caminho: Menu Ferramentas > Pré Configuração do dispositivo.
 
 Considerações Finais
@@ -165,7 +173,12 @@ AÇÕES:
 Contexto: Reduzir tempo de busca e edição de documentação.`;
     } else {
       systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft.
-Gere a documentação EXATAMENTE seguindo a estrutura do template abaixo. Não invente seções, não altere a ordem, não remova campos. Preencha apenas com as informações disponíveis no input — se não houver informação para um campo, deixe em branco.
+Gere a documentação EXATAMENTE seguindo a estrutura do template abaixo. Regras obrigatórias:
+- Não invente seções, não altere a ordem, não remova campos
+- Nas tabelas, mantenha EXATAMENTE os nomes das colunas do template
+- A ordem das colunas nas tabelas é: primeiro o nome da funcionalidade, depois os status com emojis, depois observações
+- Use os emojis da legenda: ✅ Disponível | ❌ Indisponível | ❓ Requer verificação | ❕ Parcial
+- Se não houver informação para um campo, deixe em branco
 
 TEMPLATE A SER SEGUIDO:
 ${TEMPLATES[template]}
@@ -345,10 +358,18 @@ ${selectedSkill ? `APLIQUE ESTA SKILL PERSONALIZADA: ${selectedSkill}` : ""}`;
                       <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
                         <Bot size={14} className="text-blue-500" /> Resultado da IA
                       </label>
-                      <button type="button" onClick={copyOutput}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-blue-600/20 text-slate-400 hover:text-blue-400 rounded-lg text-[10px] font-bold transition border border-slate-700">
-                        <Copy size={14} /> COPIAR
-                      </button>
+                      <div className="flex gap-2">
+                        {outputText && (
+                          <button type="button" onClick={() => setOutputText("")}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg text-[10px] font-bold transition border border-slate-700">
+                            <X size={14} /> LIMPAR
+                          </button>
+                        )}
+                        <button type="button" onClick={copyOutput}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-blue-600/20 text-slate-400 hover:text-blue-400 rounded-lg text-[10px] font-bold transition border border-slate-700">
+                          <Copy size={14} /> COPIAR
+                        </button>
+                      </div>
                     </div>
                     <div className="flex-1 w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-sm overflow-y-auto whitespace-pre-wrap font-sans leading-relaxed text-slate-300 min-h-[180px]">
                       {outputText || (
