@@ -199,7 +199,7 @@ export default function ValidatorPageStandalone() {
     localStorage.setItem("ixc_skills", JSON.stringify(skills));
   }, [skills]);
 
-  const callGemini = async () => {
+const callGemini = async () => {
     if (!inputText) return;
 
     if (!API_KEY) {
@@ -214,34 +214,51 @@ export default function ValidatorPageStandalone() {
     let systemPrompt = "";
 
     if (operationType === "validar") {
-      systemPrompt = `Você é um Analista de Documentação da IXCsoft.
+      systemPrompt = `Você é um Analista de Documentação da IXCsoft para VitePress.
 
 OBJETIVO:
 Validar o texto colado com base nas documentações das centrais.
 
 AÇÕES:
+- Indique exatamente onde o analista deve alterar a informação.
+- Indique quais links da Wiki ou Central ACS são relevantes.
+- Forneça uma sugestão de texto aprimorada.
+- Gere 1 ou 2 perguntas impessoais sobre o conteúdo.
 
-Indique exatamente onde o analista deve alterar a informação.
+FORMATAÇÃO VITEPRESS (use estes containers quando apropriado):
+> [!NOTE] ✏️ Para informações gerais ou notas adicionais.
+> [!TIP] 🔥 Para dicas úteis ou sugestões.
+> [!WARNING] ⚠️ Para avisos ou alertas sobre possíveis problemas.
+> [!DANGER] ⚡ Para alertas de alto risco ou perigo iminente.
+> [!SUCCESS] ✅ Para destacar resultados positivos ou ações bem-sucedidas.
+> [!INFO] ℹ️ Alternativa para NOTE, usado para informações gerais.
+> [!QUESTION] ❓ Para destacar perguntas frequentes ou pontos de discussão.
+> [!EXAMPLE] 🗒️ Para fornecer exemplos práticos ou ilustrativos.
+> [!FAIL] ❌ Para indicar erros.
 
-Indique quais links da Wiki ou Central ACS são relevantes.
-
-Forneça uma sugestão de texto aprimorada.
-
-Gere 1 ou 2 perguntas impessoais sobre o conteúdo.
-
+Template:
 ${TEMPLATES[template]}
 
 ${selectedSkill ? `APLIQUE ESTA SKILL: ${selectedSkill}` : ""}`;
     } else {
       systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress.
 
-Regras:
+REGRAS:
+- Não invente seções
+- Não altere a ordem do template
+- Preserve containers VitePress
+- Utilize os containers de formatação VitePress quando apropriado
 
-Não invente seções
-
-Não altere a ordem do template
-
-Preserve containers VitePress
+CONTAINERS VITEPRESS DISPONÍVEIS:
+> [!NOTE] ✏️ Para informações gerais ou notas adicionais.
+> [!TIP] 🔥 Para dicas úteis ou sugestões.
+> [!WARNING] ⚠️ Para avisos ou alertas sobre possíveis problemas.
+> [!DANGER] ⚡ Para alertas de alto risco ou perigo iminente.
+> [!SUCCESS] ✅ Para destacar resultados positivos ou ações bem-sucedidas.
+> [!INFO] ℹ️ Alternativa para NOTE, usado para informações gerais.
+> [!QUESTION] ❓ Para destacar perguntas frequentes ou pontos de discussão.
+> [!EXAMPLE] 🗒️ Para fornecer exemplos práticos ou ilustrativos.
+> [!FAIL] ❌ Para indicar erros.
 
 Template:
 ${TEMPLATES[template]}
