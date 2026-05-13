@@ -588,7 +588,7 @@ data.candidates?.[0]?.content?.parts?.[0]?.text ??
                 </div>
               )}
             </div>
-          )}
+             )}
         </main>
       </div>
     </div>
