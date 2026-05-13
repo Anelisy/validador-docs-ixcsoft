@@ -388,15 +388,14 @@ ${selectedSkill ? `APLIQUE ESTA SKILL: ${selectedSkill}` : ""}`;
                 <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
                   <button
                     type="button"
-                    onClick={() => setOperationType("
-validar")}
+                    onClick={() => setOperationType("validar")}
                     className={`px-5 py-2 rounded-lg text-xs font-bold ${
                       operationType === "validar"
                         ? "bg-blue-600 text-white"
                         : "text-slate-400"
                     }`}
                   >
-                    VALIDAR
+                    VALIeDAR
                   </button>
 
                   <button
