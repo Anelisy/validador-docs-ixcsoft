@@ -1,18 +1,17 @@
 {
-  "name": "workspace",
-  "version": "0.0.0",
-  "license": "MIT",
-  "scripts": {
-    "preinstall": "rm -f package-lock.json yarn.lock",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
-    "build:github-pages": "cd artifacts/mockup-sandbox && NODE_ENV=production pnpm run build && cd ../.. && rm -rf docs && mv artifacts/mockup-sandbox/dist docs && touch docs/.nojekyll",
-    "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
-  },
-  "private": true,
-  "devDependencies": {
-    "@types/node": "catalog:",
-    "prettier": "^3.8.1",
-    "typescript": "~5.9.2"
-  }
-}
+"name": "workspace",
+"version": "0.0.0",
+"license": "MIT",
+"scripts": {
+"preinstall": "rm -f package-lock.json yarn.lock",
+"build": "pnpm run typecheck && pnpm -r --if-present run build",
+"build:github-pages": "cd artifacts/mockup-sandbox && NODE_ENV=production pnpm run build && cd ../.. && rm -rf docs && mv artifacts/mockup-sandbox/dist docs && touch docs/.nojekyll",
+"typecheck:libs": "tsc --build",
+"typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+},
+"private": true,
+"devDependencies": {
+"@types/node": "^20.5.0",
+"prettier": "^3.8.1",
+"typescript": "~5.9.2"
+} }
