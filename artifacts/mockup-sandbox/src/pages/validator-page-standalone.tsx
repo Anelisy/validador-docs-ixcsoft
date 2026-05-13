@@ -96,7 +96,7 @@ Comparativo Homologações
 Guia - Termos de Homologação de Dispositivos`,
 };
 
-type Skill = { id: number; name: string; prompt: string };
+type Skill = { id: number; name: string; prompt: string; category: "GERAL" | "CADASTRO" | "HOMOLOGACAO" };
 type HistoryItem = { id: number; input: string; output: string; type: string; date: string };
 
 const NAV_ITEMS = [
@@ -141,7 +141,7 @@ export default function ValidatorPageStandalone() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [selectedSkill, setSelectedSkill] = useState("");
-  // desktop sidebar collapsed state; on mobile we use bottom nav
+  const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
@@ -335,7 +335,17 @@ ${selectedSkill ? `APLIQUE ESTA SKILL PERSONALIZADA: ${selectedSkill}` : ""}`;
                           <select value={selectedSkill} onChange={(e) => setSelectedSkill(e.target.value)}
                             className="text-[10px] bg-slate-800 border border-slate-700 rounded px-2 py-1 outline-none font-bold text-slate-300 max-w-[120px]">
                             <option value="">Sem Skill</option>
-                            {skills.map((s) => <option key={s.id} value={s.prompt}>{s.name}</option>)}
+                            {skills.filter((s) => (s.category ?? "GERAL") === template).map((s) => (
+                              <option key={s.id} value={s.prompt}>{s.name}</option>
+                            ))}
+                            {skills.filter((s) => (s.category ?? "GERAL") !== template).length > 0 && (
+                              <>
+                                <option disabled>──────</option>
+                                {skills.filter((s) => (s.category ?? "GERAL") !== template).map((s) => (
+                                  <option key={s.id} value={s.prompt}>{s.name}</option>
+                                ))}
+                              </>
+                            )}
                           </select>
                         )}
                         <button type="button" onClick={() => setInputText("")} className="p-1 text-slate-600 hover:text-red-500">
@@ -443,44 +453,94 @@ ${selectedSkill ? `APLIQUE ESTA SKILL PERSONALIZADA: ${selectedSkill}` : ""}`;
                     Defina instruções específicas (System Prompts) para que a IA se comporte exatamente como você deseja em cada cenário de documentação.
                   </p>
                 </div>
+
+                {/* Formulário adicionar/editar */}
                 <div className="bg-slate-900 p-4 md:p-6 rounded-2xl border border-slate-800">
-                  <h4 className="font-bold text-sm mb-4 text-white">Nova Skill</h4>
+                  <h4 className="font-bold text-sm mb-4 text-white">
+                    {editingSkill ? "Editar Skill" : "Nova Skill"}
+                  </h4>
                   <form onSubmit={(e) => {
                     e.preventDefault();
                     const fd = new FormData(e.currentTarget as HTMLFormElement);
                     const name = String(fd.get("skill_name") || "");
                     const prompt = String(fd.get("skill_prompt") || "");
+                    const category = String(fd.get("skill_category") || "GERAL") as Skill["category"];
                     if (!name || !prompt) return;
-                    setSkills([...skills, { id: Date.now(), name, prompt }]);
+                    if (editingSkill) {
+                      setSkills(skills.map((s) => s.id === editingSkill.id ? { ...s, name, prompt, category } : s));
+                      setEditingSkill(null);
+                    } else {
+                      setSkills([...skills, { id: Date.now(), name, prompt, category }]);
+                    }
                     e.currentTarget.reset();
                   }} className="space-y-3">
                     <input name="skill_name" placeholder="Ex: Redação Técnica ACS Nível 2" required
+                      defaultValue={editingSkill?.name ?? ""}
+                      key={editingSkill?.id ?? "new"}
                       className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-200 placeholder:text-slate-600" />
+                    <select name="skill_category" defaultValue={editingSkill?.category ?? "GERAL"}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-200">
+                      <option value="GERAL">Geral</option>
+                      <option value="CADASTRO">Cadastro</option>
+                      <option value="HOMOLOGACAO">Homologação</option>
+                    </select>
                     <textarea name="skill_prompt" placeholder="Ex: Sempre use uma linguagem mais formal e detalhe cada passo técnico..." required
+                      defaultValue={editingSkill?.prompt ?? ""}
                       className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm min-h-[100px] outline-none focus:ring-2 focus:ring-blue-500 text-slate-200 placeholder:text-slate-600" />
-                    <button type="submit"
-                      className="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition text-xs tracking-widest">
-                      ADICIONAR SKILL
-                    </button>
+                    <div className="flex gap-2">
+                      <button type="submit"
+                        className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-lg transition text-xs tracking-widest">
+                        {editingSkill ? "SALVAR ALTERAÇÕES" : "ADICIONAR SKILL"}
+                      </button>
+                      {editingSkill && (
+                        <button type="button" onClick={() => setEditingSkill(null)}
+                          className="px-4 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold py-3 rounded-lg transition text-xs">
+                          CANCELAR
+                        </button>
+                      )}
+                    </div>
                   </form>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {skills.map((s) => (
-                    <div key={s.id} className="bg-slate-900 p-4 md:p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Bot size={16} className="text-blue-500 shrink-0" />
-                          <p className="font-bold text-white text-sm truncate">{s.name}</p>
-                        </div>
-                        <p className="text-xs text-slate-500 line-clamp-3 bg-slate-800 p-2 rounded border border-slate-700 italic">"{s.prompt}"</p>
+
+                {/* Lista de skills agrupadas por categoria */}
+                {(["GERAL", "CADASTRO", "HOMOLOGACAO"] as const).map((cat) => {
+                  const catSkills = skills.filter((s) => (s.category ?? "GERAL") === cat);
+                  if (catSkills.length === 0) return null;
+                  const catLabel = cat === "GERAL" ? "Geral" : cat === "CADASTRO" ? "Cadastro" : "Homologação";
+                  const catColor = cat === "GERAL" ? "text-blue-400 border-blue-500/30 bg-blue-500/5" : cat === "CADASTRO" ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/5" : "text-purple-400 border-purple-500/30 bg-purple-500/5";
+                  return (
+                    <div key={cat}>
+                      <p className={`text-[10px] font-bold uppercase tracking-widest mb-3 px-1 ${catColor.split(" ")[0]}`}>{catLabel}</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {catSkills.map((s) => (
+                          <div key={s.id} className={`bg-slate-900 p-4 md:p-5 rounded-2xl border flex flex-col justify-between ${catColor.split(" ").slice(1).join(" ")}`}>
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <Bot size={16} className="shrink-0 text-slate-400" />
+                                <p className="font-bold text-white text-sm truncate flex-1">{s.name}</p>
+                              </div>
+                              <p className="text-xs text-slate-500 line-clamp-3 bg-slate-800 p-2 rounded border border-slate-700 italic">"{s.prompt}"</p>
+                            </div>
+                            <div className="flex gap-2 mt-4">
+                              <button type="button" onClick={() => setEditingSkill(s)}
+                                className="flex-1 text-blue-400 hover:bg-blue-500/10 py-2 rounded-lg transition text-[10px] font-bold flex items-center justify-center gap-1">
+                                ✏️ EDITAR
+                              </button>
+                              <button type="button" onClick={() => setSkills(skills.filter((sk) => sk.id !== s.id))}
+                                className="flex-1 text-red-500 hover:bg-red-500/10 py-2 rounded-lg transition text-[10px] font-bold flex items-center justify-center gap-1">
+                                <Trash2 size={12} /> REMOVER
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <button type="button" onClick={() => setSkills(skills.filter((sk) => sk.id !== s.id))}
-                        className="mt-4 text-red-500 hover:bg-red-500/10 py-2 rounded-lg transition text-[10px] font-bold flex items-center justify-center gap-2">
-                        <Trash2 size={12} /> REMOVER
-                      </button>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
+
+                {skills.length === 0 && (
+                  <div className="text-center py-12 text-slate-600 text-sm">Nenhuma skill cadastrada ainda.</div>
+                )}
               </div>
             )}
 
