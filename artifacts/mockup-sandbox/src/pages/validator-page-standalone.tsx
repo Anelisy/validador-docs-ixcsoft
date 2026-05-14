@@ -352,10 +352,12 @@ ${selectedSkill ? `SKILL ESPECÍFICA A APLICAR: ${selectedSkill}` : ""}`;
         ];
         return newHistory.slice(0, 50);
       });
-     
-  const copyOutput = () => {
-    navigator.clipboard.writeText(outputText);
-    setCopied(true);
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao comunicar com Gemini.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const displayName = user?.name ?? "Usuário";
