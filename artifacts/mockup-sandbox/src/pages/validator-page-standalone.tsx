@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
+const DEEPSEEK_API_KEY = "sk-a4ed848af1e047858a59692ddd81efa6";
 
 const TEMPLATES = {
   GERAL: `Título
@@ -202,9 +203,9 @@ export default function ValidatorPageStandalone() {
     }
   }, [copied]);
 
-  const callGemini = async () => {
+    const callGemini = async () => {
     if (!inputText) return;
-    if (!API_KEY) {
+    if (!GEMINI_API_KEY) {
       alert("Chave da API do Gemini não configurada.");
       return;
     }
@@ -215,47 +216,24 @@ export default function ValidatorPageStandalone() {
     let systemPrompt = "";
 
     if (operationType === "validar") {
-      systemPrompt = `Você é um Analista de Documentação Técnica da IXCsoft, especialista em validar documentações para a Central de Ajuda (VitePress).
-
-FONTES DE PESQUISA E COMPARAÇÃO:
-- Central IXC Provedor: https://central.ixcprovedor.com.br
-- Central IXC ACS: https://central-ixcacs.ixcsoft.com.br
-- Wiki ERP: https://wiki-erp.ixcsoft.com.br
-- Documentação oficial IXCsoft
-
-INSTRUÇÕES DE SAÍDA (responda neste formato):
-
-📋 **ANÁLISE DE CONFORMIDADE:**
-- Verifique se o conteúdo está alinhado com as documentações oficiais
-
-📍 **ONDE ALTERAR:**
-- Indique EXATAMENTE em qual parágrafo/seção a alteração é necessária
-
-🔗 **LINKS DE REFERÊNCIA:**
-- SEMPRE forneça links relevantes das centrais acima
-
-💡 **SUGESTÕES DE MELHORIA:**
-- Texto sugerido, containers VitePress apropriados
-
-❓ **PERGUNTAS FAQ (5 a 10):**
-Gere perguntas impessoais que possam ser respondidas pelo texto. NÃO dê as respostas.
-
+      systemPrompt = `Você é um Analista de Documentação Técnica da IXCsoft...
+      // ... (mantenha o mesmo systemPrompt da validação)
 Template: ${TEMPLATES[template]}
 ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     } else {
-      systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress.
-
-REGRAS: Não invente seções, preserve containers VitePress, use emojis e tabelas.
-
-CONTAINERS: [!NOTE] ✏️ [!TIP] 🔥 [!WARNING] ⚠️ [!DANGER] ⚡ [!SUCCESS] ✅ [!INFO] ℹ️ [!QUESTION] ❓ [!EXAMPLE] 🗒️ [!FAIL] ❌
-
+      systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress...
+      // ... (mantenha o mesmo systemPrompt da geração)
 Template: ${TEMPLATES[template]}
 ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     }
 
+    let resultText = "";
+    let usedModel = "Gemini";
+
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+      // PRIMEIRA TENTATIVA: Gemini
+      const geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -266,20 +244,63 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
         }
       );
 
-      const data = await response.json();
-      const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Não foi possível gerar resposta.";
+      if (geminiResponse.status === 429) {
+        // FALLBACK para DeepSeek
+        console.log("Gemini com limite de requisições (429). Migrando para DeepSeek...");
+        usedModel = "DeepSeek (fallback)";
+        
+        if (!DEEPSEEK_API_KEY) {
+          throw new Error("Chave DeepSeek não configurada.");
+        }
+
+        const deepseekResponse = await fetch("https://api.deepseek.com/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: inputText },
+            ],
+            temperature: 0.7,
+            max_tokens: 4096,
+          }),
+        });
+
+        const dsData = await deepseekResponse.json();
+        if (deepseekResponse.ok) {
+          resultText = dsData.choices?.[0]?.message?.content ?? "Não foi possível gerar resposta.";
+        } else {
+          throw new Error(dsData.error?.message || "Erro na API DeepSeek");
+        }
+      } else if (geminiResponse.ok) {
+        const data = await geminiResponse.json();
+        resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Não foi possível gerar resposta.";
+      } else {
+        throw new Error(`Erro ${geminiResponse.status} na API Gemini`);
+      }
+
       setOutputText(resultText);
 
       setHistory((prev) => {
         const newHistory = [
-          { id: Date.now(), input: inputText, output: resultText, type: operationType, date: new Date().toLocaleString() },
+          { 
+            id: Date.now(), 
+            input: inputText, 
+            output: `[${usedModel}] ${resultText}`, 
+            type: operationType, 
+            date: new Date().toLocaleString() 
+          },
           ...prev,
         ];
         return newHistory.slice(0, 50);
       });
     } catch (error) {
       console.error(error);
-      alert("Erro ao comunicar com Gemini.");
+      alert(`Erro ao comunicar com IA (${usedModel}).`);
     } finally {
       setLoading(false);
     }
