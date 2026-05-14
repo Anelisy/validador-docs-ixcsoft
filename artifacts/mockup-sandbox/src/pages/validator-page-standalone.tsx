@@ -254,43 +254,21 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     }
 
     try {
-      const useStream = operationType === "gerar";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:${useStream ? "streamGenerateContent" : "generateContent"}?key=${API_KEY}${useStream ? "&alt=sse" : ""}`;
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: inputText }] }],
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-        }),
-      });
-
-      let resultText = "";
-
-      if (useStream) {
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value);
-            const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
-            for (const line of lines) {
-              try {
-                const json = JSON.parse(line.slice(6));
-                resultText += json.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                setOutputText(resultText);
-              } catch {}
-            }
-          }
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: inputText }] }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+          }),
         }
-      } else {
-        const data = await response.json();
-        resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Não foi possível gerar resposta.";
-        setOutputText(resultText);
-      }
+      );
+
+      const data = await response.json();
+      const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Não foi possível gerar resposta.";
+      setOutputText(resultText);
 
       setHistory((prev) => {
         const newHistory = [
@@ -359,7 +337,6 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           {activeTab === "home" && (
             <div className="flex flex-col gap-5">
-              {/* Fontes de pesquisa - visível apenas no modo validar */}
               {operationType === "validar" && (
                 <div className="bg-blue-600/5 border border-blue-600/20 rounded-xl p-3 flex items-center gap-2">
                   <ExternalLink size={14} className="text-blue-400 shrink-0" />
@@ -399,11 +376,15 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
 
                 <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col">
                   <div className="flex justify-between items-center mb-3">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2"><Bot size={14} />Resultado{loading && operationType === "gerar" && <span className="text-blue-400 animate-pulse">● Gerando...</span>}</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
+                      <Bot size={14} />
+                      Resultado
+                      {loading && <span className="text-blue-400 animate-pulse ml-2">● Processando...</span>}
+                    </label>
                     <button type="button" onClick={copyOutput} className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition"><Copy size={14} />COPIAR</button>
                   </div>
                   <div className="flex-1 bg-slate-800 border border-slate-700 rounded-xl p-4 whitespace-pre-wrap text-sm overflow-y-auto min-h-[200px]">
-                    {outputText || (loading ? "Gerando documentação..." : "Aguardando solicitação...")}
+                    {outputText || (loading ? "Processando..." : "Aguardando solicitação...")}
                   </div>
                 </div>
               </div>
@@ -496,5 +477,5 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
         </main>
       </div>
     </div>
-  )
+  );
 }
