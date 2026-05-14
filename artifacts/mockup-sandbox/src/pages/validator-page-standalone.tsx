@@ -301,7 +301,7 @@ CONTAINERS VITEPRESS DISPONÍVEIS:
 > [!SUCCESS] ✅ Para destacar resultados positivos ou ações bem-sucedidas.
 > [!INFO] ℹ️ Alternativa para NOTE, usado para informações gerais.
 > [!QUESTION] ❓ Para destacar perguntas frequentes ou pontos de discussão.
-> [!EXAMPLE] 🗒️ Para fornecer exemplos práticos ou ilustrativos.
+> [!EXAMPLE] ��️ Para fornecer exemplos práticos ou ilustrativos.
 > [!FAIL] ❌ Para indicar erros.
 
 Template:
@@ -700,3 +700,4 @@ ${selectedSkill ? `SKILL ESPECÍFICA A APLICAR: ${selectedSkill}` : ""}`;
     </div>
   );
 }
+
