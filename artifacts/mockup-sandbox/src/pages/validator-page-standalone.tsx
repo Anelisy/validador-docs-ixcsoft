@@ -21,7 +21,6 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
-const DEEPSEEK_API_KEY = "sk-a4ed848af1e047858a59692ddd81efa6";
 const HF_API_KEY = "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";
 
 const TEMPLATES = {
@@ -267,17 +266,33 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
       if (geminiResponse.ok) {
         const data = await geminiResponse.json();
         resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+        
         if (resultText) {
-          setOutputText(`✨ **Gerado por:** ${usedModel}\n\n${resultText}\n\n---\n🕒 ${new Date().toLocaleString('pt-BR')}`);
-          setHistory((prev) => [{ id: Date.now(), input: inputText, output: `[${usedModel}] ${resultText.substring(0, 500)}...`, type: operationType, date: new Date().toLocaleString() }, ...prev].slice(0, 50));
+          const finalOutput = `✨ **Gerado por:** ${usedModel}\n\n${resultText}\n\n---\n🕒 ${new Date().toLocaleString('pt-BR')}`;
+          setOutputText(finalOutput);
+          
+          setHistory((prev) => {
+            const newHistory = [
+              { 
+                id: Date.now(), 
+                input: inputText, 
+                output: `[${usedModel}] ${resultText.substring(0, 500)}...`, 
+                type: operationType, 
+                date: new Date().toLocaleString() 
+              },
+              ...prev,
+            ];
+            return newHistory.slice(0, 50);
+          });
+          
           setLoading(false);
           return;
         }
       }
       
-      // 2ª TENTATIVA: Hugging Face (pular DeepSeek que está sem saldo)
-      console.log("Gemini falhou, tentando Hugging Face...");
-      setOutputText("⚠️ Gemini indisponível. Usando Hugging Face...");
+      // 2ª TENTATIVA: Hugging Face (fallback quando Gemini falha ou dá 429)
+      console.log("Gemini falhou ou atingiu limite. Tentando Hugging Face...");
+      setOutputText("⚠️ Gemini indisponível. Usando Hugging Face como fallback...");
       usedModel = "Hugging Face";
       
       const hfResponse = await fetch(
@@ -310,23 +325,50 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
         }
         
         if (resultText) {
-          setOutputText(`✨ **Gerado por:** ${usedModel}\n\n${resultText}\n\n---\n🕒 ${new Date().toLocaleString('pt-BR')}`);
-          setHistory((prev) => [{ id: Date.now(), input: inputText, output: `[${usedModel}] ${resultText.substring(0, 500)}...`, type: operationType, date: new Date().toLocaleString() }, ...prev].slice(0, 50));
+          const finalOutput = `✨ **Gerado por:** ${usedModel}\n\n${resultText}\n\n---\n🕒 ${new Date().toLocaleString('pt-BR')}`;
+          setOutputText(finalOutput);
+          
+          setHistory((prev) => {
+            const newHistory = [
+              { 
+                id: Date.now(), 
+                input: inputText, 
+                output: `[${usedModel}] ${resultText.substring(0, 500)}...`, 
+                type: operationType, 
+                date: new Date().toLocaleString() 
+              },
+              ...prev,
+            ];
+            return newHistory.slice(0, 50);
+          });
+          
           setLoading(false);
           return;
         }
       }
       
       // Se chegou aqui, ambos falharam
-      throw new Error("Gemini (429) e Hugging Face falharam. Tente novamente em alguns instantes.");
+      throw new Error("Gemini (429/erro) e Hugging Face falharam. Tente novamente em alguns instantes.");
       
     } catch (error: any) {
-      console.error(error);
-      setOutputText(`❌ Erro: ${error.message || "Falha na comunicação com as APIs"}`);
+      console.error("Erro detalhado:", error);
+      let errorMsg = "❌ Erro ao processar solicitação.\n\n";
+      
+      if (error.message.includes("429")) {
+        errorMsg += "API Gemini está sobrecarregada.\n";
+        errorMsg += "Hugging Face também falhou. Aguarde alguns minutos e tente novamente.";
+      } else if (error.message.includes("fetch") || error.message.includes("network")) {
+        errorMsg += "Erro de rede. Verifique sua conexão com a internet.";
+      } else {
+        errorMsg += error.message || "Erro desconhecido. Tente novamente mais tarde.";
+      }
+      
+      setOutputText(errorMsg);
       alert(`Erro: ${error.message}`);
     } finally {
       setLoading(false);
-    };
+    }
+  };
 
   const copyOutput = () => {
     navigator.clipboard.writeText(outputText);
