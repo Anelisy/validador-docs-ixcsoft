@@ -360,6 +360,11 @@ ${selectedSkill ? `SKILL ESPECÍFICA A APLICAR: ${selectedSkill}` : ""}`;
     }
   };
 
+  const copyOutput = () => {
+    navigator.clipboard.writeText(outputText);
+    setCopied(true);
+  };
+
   const displayName = user?.name ?? "Usuário";
 
   return (
