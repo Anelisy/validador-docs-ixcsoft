@@ -1,16 +1,9 @@
 import { useState } from "react";
-import { BookOpenCheck, Lock, Mail, Eye, EyeOff, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { BookOpenCheck, Lock, Mail, Eye, EyeOff, ShieldCheck, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-
-const API_BASE = () => import.meta.env.BASE_URL.replace(/\/$/, "") + "/api";
 
 export default function LoginPage({ setupMode = false }: { setupMode?: boolean }) {
   const { login } = useAuth();
-  const { toast } = useToast();
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -22,108 +15,70 @@ export default function LoginPage({ setupMode = false }: { setupMode?: boolean }
     e.preventDefault();
     setLoading(true);
 
-    const endpoint = setupMode ? "/auth/setup" : "/auth/login";
-    const body = setupMode ? { email, name, password } : { email, password };
-
-    try {
-      const res = await fetch(`${API_BASE()}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        toast({ title: "Erro", description: data.error ?? "Falha ao autenticar.", variant: "destructive" });
-        return;
-      }
-
-      login(data.token, data.user);
-    } catch {
-      toast({ title: "Erro de conexão", description: "Não foi possível conectar ao servidor.", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
+    // Pequeno delay para feedback visual
+    await new Promise((r) => setTimeout(r, 500));
+    await login(email, password);
+    setLoading(false);
   }
 
   return (
-    <div className="dark min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-xl shadow-primary/25 mb-4">
-            <BookOpenCheck className="w-8 h-8 text-primary-foreground" />
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center shadow-xl shadow-blue-600/25 mb-4">
+            <BookOpenCheck className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Validador de Docs</h1>
-          <p className="text-sm text-muted-foreground mt-1">Documentação IA — IXC Soft</p>
+          <h1 className="text-2xl font-bold text-white">Validador IXC</h1>
+          <p className="text-sm text-slate-400 mt-1">Documentação IA — IXC Soft</p>
         </div>
 
-        <div className="bg-card border border-border/50 rounded-2xl p-8 shadow-2xl">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
           <div className="flex items-center gap-2 mb-6">
-            {setupMode ? (
-              <ShieldCheck className="w-5 h-5 text-primary" />
-            ) : (
-              <Lock className="w-5 h-5 text-primary" />
-            )}
-            <h2 className="text-lg font-semibold">
-              {setupMode ? "Configuração Inicial" : "Acesso Restrito"}
-            </h2>
+            <Lock className="w-5 h-5 text-blue-400" />
+            <h2 className="text-lg font-semibold text-white">Acesso Restrito</h2>
           </div>
 
-          {setupMode && (
-            <p className="text-sm text-muted-foreground mb-5 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2">
-              Nenhum usuário cadastrado ainda. Crie a conta administradora para começar.
-            </p>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
-            {setupMode && (
-              <div className="space-y-1.5">
-                <Label htmlFor="name">Nome completo</Label>
-                <Input
-                  id="name"
-                  placeholder="Seu nome"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="bg-background/50"
-                />
-              </div>
-            )}
-
             <div className="space-y-1.5">
-              <Label htmlFor="email">E-mail</Label>
+              <label htmlFor="email" className="text-xs font-bold text-slate-500 uppercase">
+                E-mail
+              </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input
                   id="email"
                   type="email"
-                  placeholder="seu@email.com"
+                  placeholder="seu.nome@ixcsoft.com.br"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="pl-9 bg-background/50"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pl-9 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
                 />
               </div>
+              <p className="text-[10px] text-slate-600 mt-1">
+                Use seu e-mail @ixcsoft.com.br
+              </p>
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password">Senha</Label>
+              <label htmlFor="password" className="text-xs font-bold text-slate-500 uppercase">
+                Senha
+              </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
-                  className="pl-9 pr-10 bg-background/50"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pl-9 pr-10 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -131,16 +86,32 @@ export default function LoginPage({ setupMode = false }: { setupMode?: boolean }
               </div>
             </div>
 
-            <Button type="submit" className="w-full mt-2" disabled={loading}>
-              {loading ? "Aguarde..." : setupMode ? "Criar conta admin" : "Entrar"}
-            </Button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-800 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition mt-2"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <LogIn size={18} />
+                  ENTRAR
+                </>
+              )}
+            </button>
           </form>
 
-          {!setupMode && (
-            <p className="text-xs text-center text-muted-foreground mt-4">
-              Acesso disponível apenas para membros da equipe cadastrados.
+          <div className="bg-blue-600/10 border border-blue-600/30 rounded-xl p-3 mt-4">
+            <p className="text-xs text-blue-400 text-center">
+              🔐 Primeiro acesso? Use a senha padrão:{" "}
+              <strong>V@lidador123</strong>
             </p>
-          )}
+          </div>
+
+          <p className="text-xs text-center text-slate-600 mt-4">
+            Acesso disponível apenas para membros da equipe @ixcsoft.com.br
+          </p>
         </div>
       </div>
     </div>
