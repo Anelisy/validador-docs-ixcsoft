@@ -21,7 +21,8 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
-const OPENAI_API_KEY = "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";
+const OPENAI_API_const HF_API_KEY = "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";
+const HF_API_KEY = "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";
 
 const TEMPLATES = {
   GERAL: `Título
@@ -202,7 +203,6 @@ export default function ValidatorPageStandalone() {
       return () => clearTimeout(timer);
     }
   }, [copied]);
-
   const callGemini = async () => {
     if (!inputText) return;
     if (!API_KEY) {
@@ -216,26 +216,24 @@ export default function ValidatorPageStandalone() {
     let systemPrompt = "";
 
     if (operationType === "validar") {
-      systemPrompt = `Você é um Analista de Documentação Técnica da IXCsoft, especialista em validar documentações para a Central de Ajuda (VitePress).
+      systemPrompt = `Você é um Analista de Documentação Técnica da IXCsoft.
 
-FONTES DE PESQUISA E COMPARAÇÃO:
+FONTES DE PESQUISA:
 - Central IXC Provedor: https://central.ixcprovedor.com.br
 - Central IXC ACS: https://central-ixcacs.ixcsoft.com.br
 - Wiki ERP: https://wiki-erp.ixcsoft.com.br
 
 INSTRUÇÕES DE SAÍDA:
-
-📋 **ANÁLISE DE CONFORMIDADE:**
-📍 **ONDE ALTERAR:**
-🔗 **LINKS DE REFERÊNCIA:**
-💡 **SUGESTÕES DE MELHORIA:**
-❓ **PERGUNTAS FAQ (5 a 10):** (sem respostas)
+📋 ANÁLISE DE CONFORMIDADE
+📍 ONDE ALTERAR
+🔗 LINKS DE REFERÊNCIA
+💡 SUGESTÕES DE MELHORIA
+❓ PERGUNTAS FAQ (5 a 10, sem respostas)
 
 Template: ${TEMPLATES[template]}
 ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     } else {
       systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress.
-
 REGRAS: Não invente seções, preserve containers VitePress, use emojis e tabelas.
 CONTAINERS: [!NOTE] ✏️ [!TIP] 🔥 [!WARNING] ⚠️ [!SUCCESS] ✅ [!INFO] ℹ️
 
@@ -244,7 +242,7 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     }
 
     let resultText = "";
-    let usedModel = "";
+    let usedModel = "Gemini";
 
     try {
       // 1ª TENTATIVA: Gemini
@@ -261,39 +259,39 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
       );
 
       if (geminiRes.ok) {
-        usedModel = "Gemini";
         const data = await geminiRes.json();
         resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-      } else if (geminiRes.status === 429 && OPENAI_API_KEY) {
-        // 2ª TENTATIVA: OpenAI (fallback)
-        setOutputText("Gemini indisponível (429). Migrando para OpenAI...");
-        usedModel = "OpenAI (fallback)";
-        
-        const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: inputText },
-            ],
-            temperature: 0.7,
-            max_tokens: 4096,
-          }),
-        });
+      } else if (geminiRes.status === 429 && HF_API_KEY) {
+        // FALLBACK: Hugging Face
+        setOutputText("Gemini indisponível. Migrando para Hugging Face...");
+        usedModel = "HuggingFace (fallback)";
 
-        const openaiData = await openaiRes.json();
-        if (openaiRes.ok) {
-          resultText = openaiData.choices?.[0]?.message?.content ?? "";
+        const hfRes = await fetch(
+          "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${HF_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              inputs: `<s>[INST] ${systemPrompt}\n\nTEXTO DO USUÁRIO:\n${inputText} [/INST]`,
+              parameters: {
+                max_new_tokens: 2048,
+                temperature: 0.7,
+              },
+            }),
+          }
+        );
+
+        const hfData = await hfRes.json();
+        if (hfRes.ok) {
+          resultText = Array.isArray(hfData) ? hfData[0]?.generated_text?.split("[/INST]")[1]?.trim() || hfData[0]?.generated_text : hfData.generated_text || JSON.stringify(hfData);
         } else {
-          resultText = "Erro na API OpenAI: " + (openaiData.error?.message || "Tente novamente.");
+          resultText = "Erro Hugging Face: " + (hfData.error || "Tente novamente.");
         }
       } else {
-        resultText = `Erro ${geminiRes.status} na API Gemini. Tente novamente.`;
+        resultText = `Erro ${geminiRes.status}. Tente novamente em instantes.`;
       }
 
       if (!resultText) resultText = "Não foi possível gerar resposta.";
@@ -313,7 +311,6 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
       setLoading(false);
     }
   };
-
   const copyOutput = () => {
     navigator.clipboard.writeText(outputText);
     setCopied(true);
