@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BookOpenCheck, Lock, Mail, Eye, EyeOff, LogIn } from "lucide-react";
+import { BookOpenCheck, Lock, Mail, Eye, EyeOff, LogIn, Info } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
 export default function LoginPage() {
@@ -96,11 +96,24 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="bg-blue-600/10 border border-blue-600/30 rounded-xl p-3 mt-4">
-            <p className="text-xs text-blue-400 text-center">
-              🔐 Primeiro acesso? Use a senha padrão:{" "}
-              <strong>V@lidador123</strong>
-            </p>
+
+          <div className="flex items-center justify-center mt-4">
+            <div className="relative group">
+              <button
+                type="button"
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-400 transition"
+              >
+                <Info size={14} />
+                <span>Primeiro acesso?</span>
+              </button>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
+                <p className="text-xs text-white text-center">
+                  🔐 Use a senha padrão:{" "}
+                  <strong className="text-blue-400">V@lidador123</strong>
+                </p>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 bg-slate-800 border-r border-b border-slate-700 rotate-45"></div>
+              </div>
+            </div>
           </div>
 
           <p className="text-xs text-center text-slate-600 mt-4">
