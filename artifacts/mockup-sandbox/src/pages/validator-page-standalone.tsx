@@ -811,6 +811,105 @@ ${selectedSkill ? `SKILL ESPECÍFICA A APLICAR: ${selectedSkill}` : ""}`;
               )}
             </div>
           )}
+                    {activeTab === "user" && (
+            <div className="max-w-lg mx-auto space-y-6">
+              <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
+                <h3 className="text-lg font-bold text-white mb-6">Perfil do Usuário</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                      Nome
+                    </label>
+                    <div className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white">
+                      {displayName}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                      E-mail
+                    </label>
+                    <div className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white">
+                      {user?.email}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-800 pt-4">
+                    <h4 className="text-sm font-bold text-white mb-3">Alterar Senha</h4>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const fd = new FormData(e.currentTarget as HTMLFormElement);
+                        const newPassword = String(fd.get("new_password") || "");
+                        const confirmPassword = String(fd.get("confirm_password") || "");
+                        
+                        if (!newPassword || newPassword.length < 6) {
+                          alert("A senha deve ter pelo menos 6 caracteres.");
+                          return;
+                        }
+                        if (newPassword !== confirmPassword) {
+                          alert("As senhas não coincidem.");
+                          return;
+                        }
+                        
+                        const { changePassword } = useAuth();
+                        changePassword(newPassword);
+                        (e.target as HTMLFormElement).reset();
+                      }}
+                      className="space-y-3"
+                    >
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                          Nova Senha
+                        </label>
+                        <input
+                          type="password"
+                          name="new_password"
+                          placeholder="Mínimo 6 caracteres"
+                          required
+                          minLength={6}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                          Confirmar Nova Senha
+                        </label>
+                        <input
+                          type="password"
+                          name="confirm_password"
+                          placeholder="Repita a nova senha"
+                          required
+                          minLength={6}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition"
+                      >
+                        ALTERAR SENHA
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl font-bold transition"
+                >
+                  <LogOut size={18} />
+                  SAIR DA CONTA
+                </button>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
