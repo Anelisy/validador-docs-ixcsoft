@@ -301,7 +301,7 @@ CONTAINERS VITEPRESS DISPONÍVEIS:
 > [!SUCCESS] ✅ Para destacar resultados positivos ou ações bem-sucedidas.
 > [!INFO] ℹ️ Alternativa para NOTE, usado para informações gerais.
 > [!QUESTION] ❓ Para destacar perguntas frequentes ou pontos de discussão.
-> [!EXAMPLE] ��️ Para fornecer exemplos práticos ou ilustrativos.
+> [!EXAMPLE] 🗒️ Para fornecer exemplos práticos ou ilustrativos.
 > [!FAIL] ❌ Para indicar erros.
 
 Template:
@@ -339,24 +339,20 @@ ${selectedSkill ? `SKILL ESPECÍFICA A APLICAR: ${selectedSkill}` : ""}`;
 
       setOutputText(resultText);
 
-      setHistory((prev) => [
-        {
-          id: Date.now(),
-          input: inputText,
-          output: resultText,
-          type: operationType,
-          date: new Date().toLocaleString(),
-        },
-        ...prev,
-      ]);
-    } catch (error) {
-      console.error(error);
-      alert("Erro ao comunicar com Gemini.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+            setHistory((prev) => {
+        const newHistory = [
+          {
+            id: Date.now(),
+            input: inputText,
+            output: resultText,
+            type: operationType,
+            date: new Date().toLocaleString(),
+          },
+          ...prev,
+        ];
+        return newHistory.slice(0, 50);
+      });
+     
   const copyOutput = () => {
     navigator.clipboard.writeText(outputText);
     setCopied(true);
@@ -568,6 +564,119 @@ ${selectedSkill ? `SKILL ESPECÍFICA A APLICAR: ${selectedSkill}` : ""}`;
             </div>
           )}
 
+ {activeTab === "history" && (
+            <div className="max-w-4xl mx-auto space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white">Histórico de Gerações</h3>
+                {history.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm("Limpar todo o histórico?")) {
+                        setHistory([]);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-xs font-bold transition"
+                  >
+                    <Trash2 size={14} />
+                    LIMPAR TUDO
+                  </button>
+                )}
+              </div>
+
+              {history.length === 0 && (
+                <div className="text-center py-12 text-slate-600">
+                  <History size={48} className="mx-auto mb-4 opacity-50" />
+                  <p>Nenhum histórico ainda.</p>
+                  <p className="text-xs mt-2">As validações e gerações aparecerão aqui.</p>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {history.map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-slate-900 p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${
+                            item.type === "validar"
+                              ? "bg-blue-600/20 text-blue-400"
+                              : "bg-green-600/20 text-green-400"
+                          }`}
+                        >
+                          {item.type === "validar" ? "Validação" : "Geração"}
+                        </span>
+                        <span className="text-xs text-slate-500">{item.date}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInputText(item.input);
+                          setOutputText(item.output);
+                          setOperationType(item.type);
+                          setActiveTab("home");
+                        }}
+                        className="text-xs text-blue-400 hover:text-blue-300 transition"
+                      >
+                        Reutilizar
+                      </button>
+                    </div>
+
+                    <details className="group">
+                      <summary className="text-sm font-bold text-white cursor-pointer hover:text-blue-400 transition">
+                        Input
+                      </summary>
+                      <div className="mt-2 p-3 bg-slate-800 rounded-lg text-xs text-slate-400 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                        {item.input}
+                      </div>
+                    </details>
+
+                    <details className="group mt-2">
+                      <summary className="text-sm font-bold text-white cursor-pointer hover:text-blue-400 transition">
+                        Output
+                      </summary>
+                      <div className="mt-2 p-3 bg-slate-800 rounded-lg text-xs text-slate-400 whitespace-pre-wrap max-h-48 overflow-y-auto">
+                        {item.output}
+                      </div>
+                    </details>
+
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(item.output);
+                          setCopied(true);
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition"
+                      >
+                        <Copy size={12} />
+                        Copiar output
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHistory((prev) => prev.filter((h) => h.id !== item.id));
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-xs transition"
+                      >
+                        <Trash2 size={12} />
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {history.length > 0 && (
+                <p className="text-center text-xs text-slate-600">
+                  Mostrando {history.length} registro(s) • Limitado a 50 por sessão
+                </p>
+              )}
+            </div>
+          )}
           {activeTab === "skills" && (
             <div className="max-w-3xl mx-auto space-y-6">
               <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
@@ -700,4 +809,3 @@ ${selectedSkill ? `SKILL ESPECÍFICA A APLICAR: ${selectedSkill}` : ""}`;
     </div>
   );
 }
-
