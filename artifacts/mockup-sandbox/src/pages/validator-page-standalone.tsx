@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/auth-context";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
 const DEEPSEEK_API_KEY = "sk-a4ed848af1e047858a59692ddd81efa6";
+const HF_API_KEY = "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";
 
 const TEMPLATES = {
   GERAL: `Título
@@ -203,56 +204,74 @@ export default function ValidatorPageStandalone() {
     }
   }, [copied]);
 
-    const callGemini = async () => {
+  const callGemini = async () => {
     if (!inputText) return;
-if (!API_KEY) {  // Mudar de GEMINI_API_KEY para API_KEY
-  alert("Chave da API do Gemini não configurada.");
-  return;
-}
+    if (!API_KEY) {
+      alert("Chave da API do Gemini não configurada.");
+      return;
+    }
 
     setLoading(true);
-    setOutputText("");
+    setOutputText("Processando...");
 
     let systemPrompt = "";
 
     if (operationType === "validar") {
-      systemPrompt = `Você é um Analista de Documentação Técnica da IXCsoft...
-      // ... (mantenha o mesmo systemPrompt da validação)
+      systemPrompt = `Você é um Analista de Documentação Técnica da IXCsoft, especialista em validar documentações para a Central de Ajuda (VitePress).
+
+FONTES DE PESQUISA E COMPARAÇÃO:
+- Central IXC Provedor: https://central.ixcprovedor.com.br
+- Central IXC ACS: https://central-ixcacs.ixcsoft.com.br
+- Wiki ERP: https://wiki-erp.ixcsoft.com.br
+
+INSTRUÇÕES DE SAÍDA:
+📋 ANÁLISE DE CONFORMIDADE:
+📍 ONDE ALTERAR:
+🔗 LINKS DE REFERÊNCIA:
+💡 SUGESTÕES DE MELHORIA:
+❓ PERGUNTAS FAQ (5 a 10): (sem respostas)
+
 Template: ${TEMPLATES[template]}
 ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     } else {
-      systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress...
-      // ... (mantenha o mesmo systemPrompt da geração)
+      systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress.
+
+REGRAS: Não invente seções, preserve containers VitePress, use emojis e tabelas.
+CONTAINERS: [!NOTE] ✏️ [!TIP] 🔥 [!WARNING] ⚠️ [!SUCCESS] ✅ [!INFO] ℹ️
+
 Template: ${TEMPLATES[template]}
 ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     }
 
     let resultText = "";
-    let usedModel = "Gemini";
+    let usedModel = "";
 
     try {
-      // PRIMEIRA TENTATIVA: Gemni
-const geminiResponse = await fetch(
-  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,  
+      // 1ª TENTATIVA: Gemini
+      usedModel = "Gemini";
+      const geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: inputText }] }],
-            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ parts: [{ text: `${systemPrompt}\n\nTEXTO DO USUÁRIO:\n${inputText}` }] }],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 4096,
+            },
           }),
         }
       );
 
-      if (geminiResponse.status === 429) {
-        // FALLBACK para DeepSeek
-        console.log("Gemini com limite de requisições (429). Migrando para DeepSeek...");
-        usedModel = "DeepSeek (fallback)";
+      if (geminiResponse.ok) {
+        const data = await geminiResponse.json();
+        resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      } else if (geminiResponse.status === 429) {
+        // 2ª TENTATIVA: DeepSeek (fallback 1)
+        setOutputText("⚠️ Gemini indisponível. Usando DeepSeek como fallback...");
+        usedModel = "DeepSeek (fallback 1)";
         
-        if (!DEEPSEEK_API_KEY) {
-          throw new Error("Chave DeepSeek não configurada.");
-        }
-
         const deepseekResponse = await fetch("https://api.deepseek.com/chat/completions", {
           method: "POST",
           headers: {
@@ -272,25 +291,65 @@ const geminiResponse = await fetch(
 
         const dsData = await deepseekResponse.json();
         if (deepseekResponse.ok) {
-          resultText = dsData.choices?.[0]?.message?.content ?? "Não foi possível gerar resposta.";
+          resultText = dsData.choices?.[0]?.message?.content ?? "";
         } else {
-          throw new Error(dsData.error?.message || "Erro na API DeepSeek");
+          throw new Error(`DeepSeek: ${dsData.error?.message || "Erro desconhecido"}`);
         }
-      } else if (geminiResponse.ok) {
-        const data = await geminiResponse.json();
-        resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Não foi possível gerar resposta.";
       } else {
-        throw new Error(`Erro ${geminiResponse.status} na API Gemini`);
+        throw new Error(`Gemini erro ${geminiResponse.status}`);
       }
 
-      setOutputText(resultText);
+      // Se Gemini e DeepSeek falharem ou retornarem vazio, tenta Hugging Face
+      if (!resultText || resultText.trim() === "") {
+        // 3ª TENTATIVA: Hugging Face (fallback 2)
+        setOutputText("⚠️ DeepSeek indisponível. Usando Hugging Face como fallback...");
+        usedModel = "HuggingFace (fallback 2)";
+        
+        const hfResponse = await fetch(
+          "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${HF_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              inputs: `<s>[INST] ${systemPrompt}\n\nTEXTO DO USUÁRIO:\n${inputText} [/INST]`,
+              parameters: {
+                max_new_tokens: 2048,
+                temperature: 0.7,
+              },
+            }),
+          }
+        );
+
+        const hfData = await hfResponse.json();
+        if (hfResponse.ok) {
+          if (Array.isArray(hfData) && hfData[0]?.generated_text) {
+            resultText = hfData[0].generated_text.split("[/INST]")[1]?.trim() || hfData[0].generated_text;
+          } else if (hfData.generated_text) {
+            resultText = hfData.generated_text.split("[/INST]")[1]?.trim() || hfData.generated_text;
+          } else {
+            resultText = JSON.stringify(hfData);
+          }
+        } else {
+          throw new Error(`Hugging Face: ${hfData.error || "Erro desconhecido"}`);
+        }
+      }
+
+      if (!resultText || resultText.trim() === "") {
+        throw new Error("Todos os serviços falharam. Tente novamente mais tarde.");
+      }
+
+      const finalOutput = `✨ **Gerado por:** ${usedModel}\n\n${resultText}\n\n---\n🕒 ${new Date().toLocaleString('pt-BR')}`;
+      setOutputText(finalOutput);
 
       setHistory((prev) => {
         const newHistory = [
           { 
             id: Date.now(), 
             input: inputText, 
-            output: `[${usedModel}] ${resultText}`, 
+            output: `[${usedModel}] ${resultText.substring(0, 500)}...`, 
             type: operationType, 
             date: new Date().toLocaleString() 
           },
@@ -298,9 +357,10 @@ const geminiResponse = await fetch(
         ];
         return newHistory.slice(0, 50);
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert(`Erro ao comunicar com IA (${usedModel}).`);
+      setOutputText(`❌ Erro: ${error.message || "Falha na comunicação com as APIs"}`);
+      alert(`Erro: ${error.message}`);
     } finally {
       setLoading(false);
     }
