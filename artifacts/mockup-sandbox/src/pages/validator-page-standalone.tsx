@@ -21,7 +21,6 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
-const DEEPSEEK_API_KEY = "sk-a4ed848af1e047858a59692ddd81efa6";
 
 const TEMPLATES = {
   GERAL: `Título
@@ -222,24 +221,14 @@ FONTES DE PESQUISA E COMPARAÇÃO:
 - Central IXC Provedor: https://central.ixcprovedor.com.br
 - Central IXC ACS: https://central-ixcacs.ixcsoft.com.br
 - Wiki ERP: https://wiki-erp.ixcsoft.com.br
-- Documentação oficial IXCsoft
 
-INSTRUÇÕES DE SAÍDA (responda neste formato):
+INSTRUÇÕES DE SAÍDA:
 
 📋 **ANÁLISE DE CONFORMIDADE:**
-- Verifique se o conteúdo está alinhado com as documentações oficiais
-
 📍 **ONDE ALTERAR:**
-- Indique EXATAMENTE em qual parágrafo/seção a alteração é necessária
-
 🔗 **LINKS DE REFERÊNCIA:**
-- SEMPRE forneça links relevantes das centrais acima
-
 💡 **SUGESTÕES DE MELHORIA:**
-- Texto sugerido, containers VitePress apropriados
-
-❓ **PERGUNTAS FAQ (5 a 10):**
-Gere perguntas impessoais que possam ser respondidas pelo texto. NÃO dê as respostas.
+❓ **PERGUNTAS FAQ (5 a 10):** (sem respostas)
 
 Template: ${TEMPLATES[template]}
 ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
@@ -247,18 +236,14 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
       systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress.
 
 REGRAS: Não invente seções, preserve containers VitePress, use emojis e tabelas.
-
-CONTAINERS: [!NOTE] ✏️ [!TIP] 🔥 [!WARNING] ⚠️ [!DANGER] ⚡ [!SUCCESS] ✅ [!INFO] ℹ️ [!QUESTION] ❓ [!EXAMPLE] 🗒️ [!FAIL] ❌
+CONTAINERS: [!NOTE] ✏️ [!TIP] 🔥 [!WARNING] ⚠️ [!SUCCESS] ✅ [!INFO] ℹ️
 
 Template: ${TEMPLATES[template]}
 ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     }
 
-    let resultText = "";
-
     try {
-      // PRIMEIRA TENTATIVA: Gemini
-      const geminiResponse = await fetch(
+      const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
         {
           method: "POST",
@@ -270,39 +255,8 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
         }
       );
 
-      if (geminiResponse.status === 429 && DEEPSEEK_API_KEY) {
-        // FALLBACK para DeepSeek
-        const deepseekResponse = await fetch("https://api.deepseek.com/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "deepseek-chat",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: inputText },
-            ],
-            temperature: 0.7,
-            max_tokens: 4096,
-          }),
-        });
-
-        const dsData = await deepseekResponse.json();
-        if (deepseekResponse.ok) {
-          resultText = dsData.choices?.[0]?.message?.content ?? "Não foi possível gerar resposta.";
-        } else {
-          resultText = "Erro na API DeepSeek: " + (dsData.error?.message || "Tente novamente.");
-        }
-      } else if (geminiResponse.ok) {
-        const data = await geminiResponse.json();
-        resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Não foi possível gerar resposta.";
-      } else {
-        const errData = await geminiResponse.json().catch(() => ({}));
-        resultText = `Erro ${geminiResponse.status}: ${errData.error?.message || "Tente novamente."}`;
-      }
-
+      const data = await response.json();
+      const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Não foi possível gerar resposta.";
       setOutputText(resultText);
 
       setHistory((prev) => {
@@ -314,7 +268,7 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
       });
     } catch (error) {
       console.error(error);
-      setOutputText("Erro de conexão. Verifique sua internet.");
+      setOutputText("Erro de conexão. Tente novamente.");
     } finally {
       setLoading(false);
     }
