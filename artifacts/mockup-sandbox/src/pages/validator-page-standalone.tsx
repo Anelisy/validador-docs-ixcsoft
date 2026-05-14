@@ -1,201 +1,59 @@
-import React, { useState, useEffect } from "react";
-import {
-  Search,
-  Bot,
-  MessageSquare,
-  History,
-  User,
-  Plus,
-  Trash2,
-  Copy,
-  Menu,
-  X,
-  LogOut,
-  Sparkles,
-  Layout,
-  Database,
-  Check,
-  ExternalLink,
-} from "lucide-react";
-
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/auth-context";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
-const OPENAI_API_const HF_API_KEY = "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";
 const HF_API_KEY = "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";
 
 const TEMPLATES = {
   GERAL: `Título
-Introdução
-(Forneça uma breve introdução ao tema do artigo, destacando sua relevância e contexto geral. Explique por que esse assunto é importante para o leitor e o que ele pode esperar aprender ao longo do texto).
-
-Desenvolvimento (mudar esse título conforme a documentação)
-(Explane o assunto em detalhes. Divida esta seção em sub-seções conforme necessário para cobrir diferentes aspectos ou tópicos relacionados ao tema principal do artigo. Considere a inclusão de tabelas ou diagramas que possam enriquecer o texto).
-
-SUBTÓPICO A
-(Explique este subtópico em profundidade. Forneça definições, contextos históricos, ou debates atuais).
-
-SUBTÓPICO B
-(Explique este subtópico em profundidade. Discuta diferentes teorias, práticas ou aplicações associadas).
-
-CONSIDERAÇÕES FINAIS
-(Resuma os principais pontos discutidos no artigo. Reitere a importância do tema e sugira possíveis direções futuras ou aplicações práticas relacionadas ao conteúdo apresentado).
-
-Leia também
-(Destaque links para outros artigos ou documentos da central de ajuda que possuam relação ou extensão direta com o tema tratado).`,
-  CADASTRO: `Cadastro de X
-Introdução
-Visão geral do cadastro. Objetivo e escopo do cadastro. Adicione aqui uma contextualização do assunto, detalhando brevemente a importância e a funcionalidade.
-
-[!NOTE] Acesso ao formulário
-Caminho: Menu > item > formulário.
-
-Entrega de valor
-Quais benefícios essa configuração/parametrização entrega aos clientes?
-
-Estrutura do formulário
-Abas principais e informações integradas a outros módulos.
-
-Campo | Descrição
---- | ---
-Financeiro | Financeiro gerado para o cliente
-Ordem de serviço | Ordens de serviço do cliente
-
-Casos de Uso
-Como o usuário poderá usar essa funcionalidade no dia a dia, em qual cenário?
-
-Considerações finais
-Resumo do que foi descrito em toda a documentação do formulário.
-
-Leia também
-Links adicionais da central de ajuda.`,
-  HOMOLOGACAO: `---
-title:
-publicado: false
-revisado: false
-melhoria: false
-autor:
-revisor:
-data_revisão:
-
-Modelo // substituir pelo Nome do modelo do equipamento.
-
-Introdução
-Modelo é um dispositivo fabricado pela/por Fabricante, projetado para oferecer funcionalidades essenciais. Este documento detalha as capacidades e limitações do dispositivo conforme testado no IXC ACS.
-
-[!INFO] Importante
-Firmware homologado:
-Hardware homologado:
-DataModel:
-
-// Preencher apenas com: Sim, Não ou requer verificação.
-Funcionalidade | Gerenciável via IXC ACS | Observações
---- | --- | ---
-NTP | |
-Wi-Fi | |
-
-[!NOTE] Acesso à funcionalidade
-
-Caminho: Menu Ferramentas > Pré Configuração do dispositivo.
-
-Considerações Finais
-Um breve resumo sobre tudo o que foi discutido.
-
-Leia Também
-Comparativo Homologações
-Guia - Termos de Homologação de Dispositivos`,
+📍 Localização
+📝 Descrição
+✅ Passos
+💡 Dicas
+⚠️ Atenção
+🔗 Links relacionados`,
+  TUTORIAL: `📚 TUTORIAL
+🎯 Objetivo
+📋 Pré-requisitos
+📝 Passo a passo
+💡 Dicas importantes
+❓ Possíveis erros`,
+  REFERENCIA: `📖 REFERÊNCIA RÁPIDA
+🔍 O quê?
+🎯 Para quê?
+📋 Como usar?
+⚙️ Parâmetros/Configurações
+💡 Exemplos
+🔗 Veja também`,
+  FAQ: `❓ PERGUNTAS FREQUENTES
+📋 Lista de perguntas com respostas concisas
+🔗 Links para documentação completa`
 };
 
-type Skill = {
-  id: number;
-  name: string;
-  prompt: string;
-  category: "GERAL" | "CADASTRO" | "HOMOLOGACAO";
+const SKILLS = {
+  "Vitepress": "Você é especialista em VitePress, framework de documentação Vue.js. Use containers: [!NOTE], [!TIP], [!WARNING], [!SUCCESS], [!INFO]. Preserve a sintaxe exata.",
+  "API": "Você é especialista em documentação de APIs REST. Use formatação para endpoints, métodos HTTP, parâmetros, headers, exemplos de requisição/resposta.",
+  "Suporte": "Você é especialista em documentação para suporte técnico. Foco em clareza, solução de problemas comuns, linguagem acessível.",
+  "Técnico": "Você é especialista em documentação técnica avançada. Use terminologia precisa, diagramas em ASCII quando útil, referências cruzadas."
 };
-
-type HistoryItem = {
-  id: number;
-  input: string;
-  output: string;
-  type: string;
-  date: string;
-};
-
-const NAV_ITEMS = [
-  { id: "home", label: "Home", icon: Layout },
-  { id: "history", label: "Histórico", icon: History },
-  { id: "skills", label: "Personalização", icon: Sparkles },
-  { id: "user", label: "Usuário", icon: User },
-] as const;
-
-type TabId = (typeof NAV_ITEMS)[number]["id"];
-
-function NavItem({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-  collapsed,
-}: {
-  icon: React.ElementType;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  collapsed: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
-        active
-          ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-          : "hover:bg-slate-800 text-slate-400 hover:text-slate-200"
-      }`}
-    >
-      <div className="shrink-0">
-        <Icon size={20} />
-      </div>
-      {!collapsed && (
-        <span className="font-bold text-xs tracking-wide">{label}</span>
-      )}
-    </button>
-  );
-}
 
 export default function ValidatorPageStandalone() {
-  const { user, logout } = useAuth();
-
-  const [activeTab, setActiveTab] = useState<TabId>("home");
-  const [operationType, setOperationType] = useState("validar");
-  const [template, setTemplate] = useState<keyof typeof TEMPLATES>("GERAL");
-
   const [inputText, setInputText] = useState("");
   const [outputText, setOutputText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [skills, setSkills] = useState<Skill[]>([]);
+  const [operationType, setOperationType] = useState("validar");
+  const [template, setTemplate] = useState("GERAL");
   const [selectedSkill, setSelectedSkill] = useState("");
-
-  const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  useEffect(() => {
-    const savedHistory = localStorage.getItem("ixc_history");
-    if (savedHistory) setHistory(JSON.parse(savedHistory));
-    const savedSkills = localStorage.getItem("ixc_skills");
-    if (savedSkills) setSkills(JSON.parse(savedSkills));
-  }, []);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
+  const textareaRef = useRef(null);
 
   useEffect(() => {
-    localStorage.setItem("ixc_history", JSON.stringify(history));
-  }, [history]);
-
-  useEffect(() => {
-    localStorage.setItem("ixc_skills", JSON.stringify(skills));
-  }, [skills]);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+    }
+  }, [inputText]);
 
   useEffect(() => {
     if (copied) {
@@ -203,57 +61,84 @@ export default function ValidatorPageStandalone() {
       return () => clearTimeout(timer);
     }
   }, [copied]);
+
   const callGemini = async () => {
-    if (!inputText) return;
+    if (!inputText) {
+      setError("Por favor, insira o texto para processar.");
+      return;
+    }
+    
     if (!API_KEY) {
-      alert("Chave da API do Gemini não configurada.");
+      setError("API Key do Gemini não configurada. Configure VITE_GEMINI_API_KEY no ambiente.");
       return;
     }
 
     setLoading(true);
-    setOutputText("");
-
+    setError("");
+    setOutputText("Processando...");
+    
     let systemPrompt = "";
 
     if (operationType === "validar") {
-      systemPrompt = `Você é um Analista de Documentação Técnica da IXCsoft.
+      systemPrompt = `Você é um Analista de Documentação Técnica da IXCsoft, especialista em validar documentações.
 
-FONTES DE PESQUISA:
+FONTES DE PESQUISA E COMPARAÇÃO:
 - Central IXC Provedor: https://central.ixcprovedor.com.br
 - Central IXC ACS: https://central-ixcacs.ixcsoft.com.br
 - Wiki ERP: https://wiki-erp.ixcsoft.com.br
 
-INSTRUÇÕES DE SAÍDA:
+FORMATO DE SAÍDA OBRIGATÓRIO:
 📋 ANÁLISE DE CONFORMIDADE
 📍 ONDE ALTERAR
 🔗 LINKS DE REFERÊNCIA
 💡 SUGESTÕES DE MELHORIA
 ❓ PERGUNTAS FAQ (5 a 10, sem respostas)
 
-Template: ${TEMPLATES[template]}
-${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
-    } else {
-      systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress.
-REGRAS: Não invente seções, preserve containers VitePress, use emojis e tabelas.
-CONTAINERS: [!NOTE] ✏️ [!TIP] 🔥 [!WARNING] ⚠️ [!SUCCESS] ✅ [!INFO] ℹ️
+Template base: ${TEMPLATES[template]}
+${selectedSkill ? `SKILL ESPECÍFICA: ${SKILLS[selectedSkill]}` : ""}
 
-Template: ${TEMPLATES[template]}
-${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
+IMPORTANTE: Não invente informações. Se não tiver certeza sobre algo, indique claramente. Use emojis e formatação markdown.`;
+    } else {
+      systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft especialista em criar documentações de alta qualidade.
+
+REGRAS OBRIGATÓRIAS:
+- Não invente seções desnecessárias
+- Preserve containers VitePress: [!NOTE] ✏️ [!TIP] 🔥 [!WARNING] ⚠️ [!SUCCESS] ✅ [!INFO] ℹ️
+- Use emojis para melhor visualização
+- Crie tabelas quando apropriado
+- Adicione exemplos práticos
+- Mantenha consistência na terminologia
+
+Template a seguir: ${TEMPLATES[template]}
+${selectedSkill ? `SKILL ESPECÍFICA: ${SKILLS[selectedSkill]}` : ""}
+
+Crie documentação clara, precisa e acionável.`;
     }
 
     let resultText = "";
     let usedModel = "Gemini";
 
     try {
-      // 1ª TENTATIVA: Gemini
+      // TENTATIVA PRINCIPAL: Gemini
       const geminiRes = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: inputText }] }],
-            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [
+              {
+                parts: [
+                  { text: `${systemPrompt}\n\nTEXTO DO USUÁRIO:\n${inputText}` }
+                ]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 4096,
+            },
           }),
         }
       );
@@ -261,246 +146,281 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
       if (geminiRes.ok) {
         const data = await geminiRes.json();
         resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-      } else if (geminiRes.status === 429 && HF_API_KEY) {
-        // FALLBACK: Hugging Face
-        setOutputText("Gemini indisponível. Migrando para Hugging Face...");
+        if (!resultText) {
+          throw new Error("Resposta vazia da API Gemini");
+        }
+      } else if (geminiRes.status === 429) {
+        // FALLBACK 1: Hugging Face (quando Gemini está sobrecarregado)
+        setOutputText("⚠️ Gemini temporariamente indisponível. Usando fallback Hugging Face...");
         usedModel = "HuggingFace (fallback)";
 
-        const hfRes = await fetch(
-          "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
-          {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${HF_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              inputs: `<s>[INST] ${systemPrompt}\n\nTEXTO DO USUÁRIO:\n${inputText} [/INST]`,
-              parameters: {
-                max_new_tokens: 2048,
-                temperature: 0.7,
+        try {
+          const hfRes = await fetch(
+            "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+            {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${HF_API_KEY}`,
+                "Content-Type": "application/json",
               },
-            }),
-          }
-        );
+              body: JSON.stringify({
+                inputs: `<s>[INST] ${systemPrompt}\n\nTEXTO DO USUÁRIO:\n${inputText} [/INST]`,
+                parameters: {
+                  max_new_tokens: 2048,
+                  temperature: 0.7,
+                  do_sample: true,
+                },
+              }),
+            }
+          );
 
-        const hfData = await hfRes.json();
-        if (hfRes.ok) {
-          resultText = Array.isArray(hfData) ? hfData[0]?.generated_text?.split("[/INST]")[1]?.trim() || hfData[0]?.generated_text : hfData.generated_text || JSON.stringify(hfData);
-        } else {
-          resultText = "Erro Hugging Face: " + (hfData.error || "Tente novamente.");
+          const hfData = await hfRes.json();
+          
+          if (hfRes.ok) {
+            if (Array.isArray(hfData) && hfData[0]?.generated_text) {
+              resultText = hfData[0].generated_text.split("[/INST]")[1]?.trim() || hfData[0].generated_text;
+            } else if (hfData.generated_text) {
+              resultText = hfData.generated_text.split("[/INST]")[1]?.trim() || hfData.generated_text;
+            } else {
+              resultText = JSON.stringify(hfData);
+            }
+          } else {
+            throw new Error(hfData.error || "Erro desconhecido no Hugging Face");
+          }
+        } catch (hfError) {
+          console.error("Erro Hugging Face:", hfError);
+          throw new Error(`Fallback falhou: ${hfError.message}`);
         }
       } else {
-        resultText = `Erro ${geminiRes.status}. Tente novamente em instantes.`;
+        // Outros erros do Gemini
+        const errorData = await geminiRes.json().catch(() => ({}));
+        throw new Error(`Gemini API erro ${geminiRes.status}: ${errorData.error?.message || "Erro desconhecido"}`);
       }
 
-      if (!resultText) resultText = "Não foi possível gerar resposta.";
-      setOutputText(resultText);
+      if (!resultText || resultText.trim() === "") {
+        throw new Error("Não foi possível gerar uma resposta válida");
+      }
 
-      setHistory((prev) => {
-        const newHistory = [
-          { id: Date.now(), input: inputText, output: `[${usedModel}] ${resultText}`, type: operationType, date: new Date().toLocaleString() },
-          ...prev,
-        ];
-        return newHistory.slice(0, 50);
-      });
-    } catch (error) {
-      console.error(error);
-      setOutputText("Erro de conexão. Verifique sua internet.");
+      // Adiciona informação do modelo usado
+      const modelInfo = `\n\n---\n✨ **Gerado usando:** ${usedModel}\n🕒 ${new Date().toLocaleString('pt-BR')}`;
+      setOutputText(resultText + modelInfo);
+      
+    } catch (err) {
+      console.error("Erro detalhado:", err);
+      let errorMessage = "❌ Erro ao processar solicitação.\n\n";
+      
+      if (err.message.includes("429")) {
+        errorMessage += "API Gemini está sobrecarregada. Tente novamente em alguns instantes.\n";
+        errorMessage += "Dica: Use o fallback manualmente selecionando 'Hugging Face' se disponível.";
+      } else if (err.message.includes("API key")) {
+        errorMessage += "Erro de autenticação. Verifique a chave de API do Gemini.\n";
+        errorMessage += "Configure VITE_GEMINI_API_KEY corretamente no ambiente.";
+      } else if (err.message.includes("network") || err.message.includes("fetch")) {
+        errorMessage += "Erro de rede. Verifique sua conexão com a internet.\n";
+        errorMessage += "Tente novamente em alguns instantes.";
+      } else {
+        errorMessage += err.message || "Erro desconhecido. Tente novamente mais tarde.";
+      }
+      
+      setError(errorMessage);
+      setOutputText(errorMessage);
     } finally {
       setLoading(false);
     }
   };
+
   const copyOutput = () => {
-    navigator.clipboard.writeText(outputText);
-    setCopied(true);
+    if (!outputText || outputText.includes("❌") || outputText.includes("Processando")) {
+      setError("Nada para copiar. Aguarde o processamento terminar.");
+      return;
+    }
+    
+    navigator.clipboard.writeText(outputText).then(() => {
+      setCopied(true);
+      setError("");
+    }).catch(() => {
+      setError("Não foi possível copiar para área de transferência");
+    });
   };
 
-  const displayName = user?.name ?? "Usuário";
+  const clearAll = () => {
+    setInputText("");
+    setOutputText("");
+    setError("");
+    setCopied(false);
+  };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-slate-950 text-slate-200">
-      {copied && (
-        <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2">
-          <Check size={18} />
-          <span className="font-bold text-sm">Copiado!</span>
-        </div>
-      )}
-
-      <aside className={`hidden md:flex flex-col bg-slate-900 border-r border-slate-800 transition-all duration-300 ${sidebarOpen ? "w-64" : "w-20"}`}>
-        <div className="p-6 flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg text-white"><Database size={24} /></div>
-          {sidebarOpen && <span className="font-bold text-white text-lg">Validador IXC</span>}
-        </div>
-        <nav className="flex-1 px-4 py-4 space-y-1">
-          {NAV_ITEMS.map(({ id, label, icon }) => (
-            <NavItem key={id} icon={icon} label={label} active={activeTab === id} onClick={() => setActiveTab(id)} collapsed={!sidebarOpen} />
-          ))}
-        </nav>
-        <div className="p-4 border-t border-slate-800">
-          <button type="button" onClick={logout} className="flex items-center gap-3 px-3 py-2 w-full hover:bg-red-500/10 hover:text-red-400 rounded-lg transition">
-            <LogOut size={18} />
-            {sidebarOpen && <span>Sair</span>}
-          </button>
-        </div>
-      </aside>
-
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 md:h-16 bg-slate-900 border-b border-slate-800 px-4 md:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setSidebarOpen(!sidebarOpen)} className="hidden md:flex p-2 hover:bg-slate-800 rounded-lg"><Menu size={20} /></button>
-            <h2 className="hidden md:block font-semibold capitalize">{activeTab}</h2>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-white">{displayName}</p>
-              <p className="text-[10px] text-slate-400">{user?.email}</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800 mb-2">
+            📄 IXCsoft Document Validator
+          </h1>
+          <p className="text-gray-600">
+            Valide e gere documentação técnica usando IA (Gemini + Fallback Hugging Face)
+          </p>
+          {!API_KEY && (
+            <div className="mt-2 p-2 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-lg">
+              ⚠️ VITE_GEMINI_API_KEY não configurada. Configure no arquivo .env
             </div>
-            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">{displayName.charAt(0).toUpperCase()}</div>
-          </div>
-        </header>
+          )}
+        </div>
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          {activeTab === "home" && (
-            <div className="flex flex-col gap-5">
-              {operationType === "validar" && (
-                <div className="bg-blue-600/5 border border-blue-600/20 rounded-xl p-3 flex items-center gap-2">
-                  <ExternalLink size={14} className="text-blue-400 shrink-0" />
-                  <p className="text-xs text-blue-400">
-                    <strong>Fontes de pesquisa:</strong> Central IXC Provedor, Central IXC ACS, Wiki ERP
-                  </p>
-                </div>
-              )}
+        {/* Main Grid */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Input Panel */}
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold text-gray-800">📝 Entrada</h2>
+              <button
+                onClick={clearAll}
+                className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded transition"
+              >
+                Limpar tudo
+              </button>
+            </div>
 
-              <div className="flex flex-wrap gap-3">
-                <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
-                  <button type="button" onClick={() => setOperationType("validar")} className={`px-5 py-2 rounded-lg text-xs font-bold ${operationType === "validar" ? "bg-blue-600 text-white" : "text-slate-400"}`}>VALIDAR</button>
-                  <button type="button" onClick={() => setOperationType("gerar")} className={`px-5 py-2 rounded-lg text-xs font-bold ${operationType === "gerar" ? "bg-blue-600 text-white" : "text-slate-400"}`}>GERAR</button>
-                </div>
-                <select value={template} onChange={(e) => setTemplate(e.target.value as keyof typeof TEMPLATES)} className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-300">
-                  <option value="GERAL">Template: Geral</option>
-                  <option value="CADASTRO">Template: Cadastro</option>
-                  <option value="HOMOLOGACAO">Template: Homologação</option>
-                </select>
-                <select value={selectedSkill} onChange={(e) => setSelectedSkill(e.target.value)} className="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs font-bold text-slate-300">
-                  <option value="">Sem skill específica</option>
-                  {skills.map((skill) => (<option key={skill.id} value={skill.prompt}>{skill.name} ({skill.category})</option>))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col">
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2"><MessageSquare size={14} />Campo de Input</label>
-                    <button type="button" onClick={() => setInputText("")} className="p-1 text-slate-600 hover:text-red-500"><X size={16} /></button>
-                  </div>
-                  <textarea value={inputText} onChange={(e) => setInputText(e.target.value)} placeholder="Cole aqui seu texto... ✅ 📝 📊" className="flex-1 w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-sm resize-none outline-none min-h-[200px]" />
-                  <button type="button" onClick={callGemini} disabled={loading || !inputText} className="mt-3 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-800 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3">
-                    {loading ? (<div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />) : (<><Bot size={18} />{operationType === "validar" ? "VALIDAR INFORMAÇÃO" : "GERAR DOCUMENTAÇÃO"}</>)}
+            {/* Controls */}
+            <div className="space-y-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Operação
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setOperationType("validar")}
+                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                      operationType === "validar"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    🔍 Validar
+                  </button>
+                  <button
+                    onClick={() => setOperationType("gerar")}
+                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                      operationType === "gerar"
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    ✨ Gerar
                   </button>
                 </div>
+              </div>
 
-                <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 flex flex-col">
-                  <div className="flex justify-between items-center mb-3">
-                    <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                      <Bot size={14} />
-                      Resultado
-                      {loading && <span className="text-blue-400 animate-pulse ml-2">● Processando...</span>}
-                    </label>
-                    <button type="button" onClick={copyOutput} className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition"><Copy size={14} />COPIAR</button>
-                  </div>
-                  <div className="flex-1 bg-slate-800 border border-slate-700 rounded-xl p-4 whitespace-pre-wrap text-sm overflow-y-auto min-h-[200px]">
-                    {outputText || (loading ? "Processando..." : "Aguardando solicitação...")}
-                  </div>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Template
+                </label>
+                <select
+                  value={template}
+                  onChange={(e) => setTemplate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="GERAL">Geral</option>
+                  <option value="TUTORIAL">Tutorial</option>
+                  <option value="REFERENCIA">Referência Rápida</option>
+                  <option value="FAQ">FAQ</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Skill Específica (opcional)
+                </label>
+                <select
+                  value={selectedSkill}
+                  onChange={(e) => setSelectedSkill(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Nenhuma</option>
+                  <option value="Vitepress">VitePress</option>
+                  <option value="API">API REST</option>
+                  <option value="Suporte">Suporte Técnico</option>
+                  <option value="Técnico">Documentação Técnica</option>
+                </select>
               </div>
             </div>
-          )}
 
-          {activeTab === "history" && (
-            <div className="max-w-4xl mx-auto space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white">Histórico de Gerações</h3>
-                {history.length > 0 && (
-                  <button type="button" onClick={() => { if (confirm("Limpar tudo?")) setHistory([]); }} className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg text-xs font-bold transition"><Trash2 size={14} />LIMPAR TUDO</button>
+            {/* Textarea */}
+            <textarea
+              ref={textareaRef}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Cole aqui o texto da documentação para validar ou o conteúdo para gerar documentação..."
+              className="w-full h-64 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-none"
+            />
+
+            {/* Action Buttons */}
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={callGemini}
+                disabled={loading || !inputText}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition transform hover:scale-105 disabled:transform-none"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processando...
+                  </span>
+                ) : (
+                  `🚀 ${operationType === "validar" ? "Validar" : "Gerar"} Documentação`
                 )}
-              </div>
-              {history.length === 0 && (
-                <div className="text-center py-12 text-slate-600"><History size={48} className="mx-auto mb-4 opacity-50" /><p>Nenhum histórico ainda.</p></div>
-              )}
-              <div className="space-y-3">
-                {history.map((item) => (
-                  <div key={item.id} className="bg-slate-900 p-5 rounded-2xl border border-slate-800 hover:border-slate-700 transition">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase ${item.type === "validar" ? "bg-blue-600/20 text-blue-400" : "bg-green-600/20 text-green-400"}`}>{item.type === "validar" ? "Validação" : "Geração"}</span>
-                        <span className="text-xs text-slate-500">{item.date}</span>
-                      </div>
-                      <button type="button" onClick={() => { setInputText(item.input); setOutputText(item.output); setOperationType(item.type); setActiveTab("home"); }} className="text-xs text-blue-400 hover:text-blue-300 transition">Reutilizar</button>
-                    </div>
-                    <details className="group"><summary className="text-sm font-bold text-white cursor-pointer hover:text-blue-400 transition">Input</summary><div className="mt-2 p-3 bg-slate-800 rounded-lg text-xs text-slate-400 whitespace-pre-wrap max-h-32 overflow-y-auto">{item.input}</div></details>
-                    <details className="group mt-2"><summary className="text-sm font-bold text-white cursor-pointer hover:text-blue-400 transition">Output</summary><div className="mt-2 p-3 bg-slate-800 rounded-lg text-xs text-slate-400 whitespace-pre-wrap max-h-48 overflow-y-auto">{item.output}</div></details>
-                    <div className="flex gap-2 mt-3">
-                      <button type="button" onClick={() => { navigator.clipboard.writeText(item.output); setCopied(true); }} className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition"><Copy size={12} />Copiar</button>
-                      <button type="button" onClick={() => setHistory((prev) => prev.filter((h) => h.id !== item.id))} className="flex items-center gap-1 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-xs transition"><Trash2 size={12} />Remover</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {history.length > 0 && <p className="text-center text-xs text-slate-600">Mostrando {history.length} registro(s) • Limitado a 50</p>}
+              </button>
             </div>
-          )}
 
-          {activeTab === "skills" && (
-            <div className="max-w-3xl mx-auto space-y-6">
-              <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
-                <h4 className="font-bold text-white mb-4">{editingSkill ? "Editar Skill" : "Nova Skill"}</h4>
-                <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget as HTMLFormElement); const name = String(fd.get("skill_name") || ""); const prompt = String(fd.get("skill_prompt") || ""); const category = String(fd.get("skill_category") || "GERAL") as Skill["category"]; if (!name || !prompt) return; if (editingSkill) { setSkills(skills.map((s) => s.id === editingSkill.id ? { ...s, name, prompt, category } : s)); setEditingSkill(null); } else { setSkills([...skills, { id: Date.now(), name, prompt, category }]); } e.currentTarget.reset(); }} className="space-y-3">
-                  <input name="skill_name" placeholder="Nome da skill" defaultValue={editingSkill?.name ?? ""} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3" />
-                  <select name="skill_category" defaultValue={editingSkill?.category ?? "GERAL"} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3"><option value="GERAL">Geral</option><option value="CADASTRO">Cadastro</option><option value="HOMOLOGACAO">Homologação</option></select>
-                  <textarea name="skill_prompt" placeholder="Prompt da skill" defaultValue={editingSkill?.prompt ?? ""} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 min-h-[120px]" />
-                  <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg">{editingSkill ? "SALVAR" : "ADICIONAR SKILL"}</button>
-                </form>
+            {error && (
+              <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                {error}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {skills.map((s) => (
-                  <div key={s.id} className="bg-slate-900 p-5 rounded-2xl border border-slate-800">
-                    <div className="flex items-center gap-2 mb-3"><Bot size={16} /><p className="font-bold text-white">{s.name}</p></div>
-                    <p className="text-xs text-slate-400 mb-4">{s.prompt}</p>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => setEditingSkill(s)} className="flex-1 text-blue-400 hover:bg-blue-500/10 py-2 rounded-lg transition text-xs font-bold">EDITAR</button>
-                      <button type="button" onClick={() => setSkills((prev) => prev.filter((sk) => sk.id !== s.id))} className="flex-1 text-red-500 hover:bg-red-500/10 py-2 rounded-lg transition text-xs font-bold flex items-center justify-center gap-1"><Trash2 size={12} />REMOVER</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {skills.length === 0 && <div className="text-center py-12 text-slate-600">Nenhuma skill cadastrada.</div>}
+            )}
+          </div>
+
+          {/* Output Panel */}
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold text-gray-800">✨ Resultado</h2>
+              <button
+                onClick={copyOutput}
+                disabled={!outputText || outputText.includes("Processando")}
+                className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded transition flex items-center gap-2"
+              >
+                {copied ? "✓ Copiado!" : "📋 Copiar"}
+              </button>
             </div>
-          )}
 
-          {activeTab === "user" && (
-            <div className="max-w-lg mx-auto space-y-6">
-              <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
-                <h3 className="text-lg font-bold text-white mb-6">Perfil do Usuário</h3>
-                <div className="space-y-4">
-                  <div><label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nome</label><div className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white">{displayName}</div></div>
-                  <div><label className="block text-xs font-bold text-slate-500 uppercase mb-2">E-mail</label><div className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white">{user?.email}</div></div>
-                  <div className="border-t border-slate-800 pt-4">
-                    <h4 className="text-sm font-bold text-white mb-3">Alterar Senha</h4>
-                    <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget as HTMLFormElement); const np = String(fd.get("new_password") || ""); const cp = String(fd.get("confirm_password") || ""); if (!np || np.length < 6) { alert("Mínimo 6 caracteres."); return; } if (np !== cp) { alert("Senhas não coincidem."); return; } const { changePassword } = useAuth(); changePassword(np); (e.target as HTMLFormElement).reset(); }} className="space-y-3">
-                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nova Senha</label><input type="password" name="new_password" placeholder="Mínimo 6 caracteres" required minLength={6} className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition" /></div>
-                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-2">Confirmar Senha</label><input type="password" name="confirm_password" placeholder="Repita a nova senha" required minLength={6} className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition" /></div>
-                      <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition">ALTERAR SENHA</button>
-                    </form>
+            <div className="h-[600px] overflow-y-auto">
+              {outputText ? (
+                <pre className="whitespace-pre-wrap font-sans text-gray-800 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  {outputText}
+                </pre>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  <div className="text-center">
+                    <div className="text-6xl mb-4">📄</div>
+                    <p>O resultado aparecerá aqui</p>
+                    <p className="text-sm mt-2">Insira um texto e clique em Validar ou Gerar</p>
                   </div>
                 </div>
-              </div>
-              <div className="text-center">
-                <button type="button" onClick={logout} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-xl font-bold transition"><LogOut size={18} />SAIR DA CONTA</button>
+              )}
+            </div>
+
+            {/* Info Footer */}
+            <div className="mt-4 pt-4 border-t border-gray-200 text-xs text-gray-500">
+              <div className="flex justify-between items-center">
+                <span>🔒 Processamento local via API Gemini + Fallback Hugging Face</span>
+                <span>⚡ Respostas em tempo real</span>
               </div>
             </div>
-          )}
-        </main>
+          </div>
+        </div>
       </div>
     </div>
   );
