@@ -21,7 +21,7 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
-const HF_API_KEY = "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";
+const HF_API_KEY = import.meta.env.VITE_HF_API_KEY ?? "";
 
 const TEMPLATES = {
   GERAL: `Título
@@ -295,23 +295,25 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
       setOutputText("⚠️ Gemini indisponível. Usando Hugging Face como fallback...");
       usedModel = "Hugging Face";
       
-      const hfResponse = await fetch(
-        "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${HF_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            inputs: `<s>[INST] ${systemPrompt}\n\nTEXTO DO USUÁRIO:\n${inputText} [/INST]`,
-            parameters: {
-              max_new_tokens: 2048,
-              temperature: 0.7,
-            },
-          }),
-        }
-      );
+const hfResponse = await fetch(
+  "https://api-inference.huggingface.co/models/microsoft/phi-2",  // Mais leve e rápido
+  // ou use "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta" (melhor qualidade)
+  {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${HF_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      inputs: `### System:\n${systemPrompt}\n\n### User:\n${inputText}\n\n### Assistant:\n`,
+      parameters: {
+        max_new_tokens: 1024,
+        temperature: 0.7,
+        do_sample: true,
+      },
+    }),
+  }
+);
 
       const hfData = await hfResponse.json();
       
