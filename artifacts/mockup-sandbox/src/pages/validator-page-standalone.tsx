@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
+const OPENAI_API_KEY = "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";
 
 const TEMPLATES = {
   GERAL: `Título
@@ -242,8 +243,12 @@ Template: ${TEMPLATES[template]}
 ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     }
 
+    let resultText = "";
+    let usedModel = "";
+
     try {
-      const response = await fetch(
+      // 1ª TENTATIVA: Gemini
+      const geminiRes = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
         {
           method: "POST",
@@ -255,20 +260,55 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
         }
       );
 
-      const data = await response.json();
-      const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Não foi possível gerar resposta.";
+      if (geminiRes.ok) {
+        usedModel = "Gemini";
+        const data = await geminiRes.json();
+        resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      } else if (geminiRes.status === 429 && OPENAI_API_KEY) {
+        // 2ª TENTATIVA: OpenAI (fallback)
+        setOutputText("Gemini indisponível (429). Migrando para OpenAI...");
+        usedModel = "OpenAI (fallback)";
+        
+        const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: inputText },
+            ],
+            temperature: 0.7,
+            max_tokens: 4096,
+          }),
+        });
+
+        const openaiData = await openaiRes.json();
+        if (openaiRes.ok) {
+          resultText = openaiData.choices?.[0]?.message?.content ?? "";
+        } else {
+          resultText = "Erro na API OpenAI: " + (openaiData.error?.message || "Tente novamente.");
+        }
+      } else {
+        resultText = `Erro ${geminiRes.status} na API Gemini. Tente novamente.`;
+      }
+
+      if (!resultText) resultText = "Não foi possível gerar resposta.";
       setOutputText(resultText);
 
       setHistory((prev) => {
         const newHistory = [
-          { id: Date.now(), input: inputText, output: resultText, type: operationType, date: new Date().toLocaleString() },
+          { id: Date.now(), input: inputText, output: `[${usedModel}] ${resultText}`, type: operationType, date: new Date().toLocaleString() },
           ...prev,
         ];
         return newHistory.slice(0, 50);
       });
     } catch (error) {
       console.error(error);
-      setOutputText("Erro de conexão. Tente novamente.");
+      setOutputText("Erro de conexão. Verifique sua internet.");
     } finally {
       setLoading(false);
     }
