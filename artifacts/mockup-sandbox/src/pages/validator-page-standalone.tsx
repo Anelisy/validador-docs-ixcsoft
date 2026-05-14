@@ -20,7 +20,7 @@ import {
 
 import { useAuth } from "@/contexts/auth-context";
 
-const API_KEY = import.meta.env.VITE_API_KEY ?? "";
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
 const DEEPSEEK_API_KEY = "sk-a4ed848af1e047858a59692ddd81efa6";
 
 const TEMPLATES = {
