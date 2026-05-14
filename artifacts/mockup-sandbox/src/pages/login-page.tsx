@@ -1,22 +1,21 @@
 import { useState } from "react";
-import { BookOpenCheck, Lock, Mail, Eye, EyeOff, ShieldCheck, LogIn } from "lucide-react";
+import { BookOpenCheck, Lock, Mail, Eye, EyeOff, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
-export default function LoginPage({ setupMode = false }: { setupMode?: boolean }) {
+export default function LoginPage() {
   const { login } = useAuth();
 
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register" | "reset">("login");
+  const [name, setName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-
-    // Pequeno delay para feedback visual
-    await new Promise((r) => setTimeout(r, 500));
     await login(email, password);
     setLoading(false);
   }
@@ -39,14 +38,13 @@ export default function LoginPage({ setupMode = false }: { setupMode?: boolean }
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label htmlFor="email" className="text-xs font-bold text-slate-500 uppercase">
-                E-mail
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">
+                E-mail Institucional
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input
-                  id="email"
                   type="email"
                   placeholder="seu.nome@ixcsoft.com.br"
                   value={email}
@@ -55,19 +53,15 @@ export default function LoginPage({ setupMode = false }: { setupMode?: boolean }
                   className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 pl-9 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
                 />
               </div>
-              <p className="text-[10px] text-slate-600 mt-1">
-                Use seu e-mail @ixcsoft.com.br
-              </p>
             </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="password" className="text-xs font-bold text-slate-500 uppercase">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">
                 Senha
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input
-                  id="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
@@ -77,8 +71,8 @@ export default function LoginPage({ setupMode = false }: { setupMode?: boolean }
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -110,7 +104,7 @@ export default function LoginPage({ setupMode = false }: { setupMode?: boolean }
           </div>
 
           <p className="text-xs text-center text-slate-600 mt-4">
-            Acesso disponível apenas para membros da equipe @ixcsoft.com.br
+            Acesso exclusivo para @ixcsoft.com.br
           </p>
         </div>
       </div>
