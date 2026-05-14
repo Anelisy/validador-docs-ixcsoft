@@ -1,3 +1,4 @@
+cat > artifacts/mockup-sandbox/src/pages/validator-page-standalone.tsx << 'FIM'
 import React, { useState, useEffect } from "react";
 import {
   Search,
@@ -496,4 +497,5 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
         </main>
       </div>
     </div>
-  );
+  )
+};
