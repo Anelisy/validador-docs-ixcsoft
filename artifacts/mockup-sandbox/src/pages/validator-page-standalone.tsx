@@ -20,58 +20,8 @@ import {
 
 import { useAuth } from "@/contexts/auth-context";
 
-// Configuração para skills compartilhadas via GitHub Gist
-const GIST_ID = "seu-gist-id-aqui"; // Criar um Gist público
-const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN ?? "";
-
-// Função para carregar skills compartilhadas
-const loadSharedSkills = async (): Promise<Skill[]> => {
-  try {
-    const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
-    const data = await response.json();
-    if (data.files && data.files["skills.json"]) {
-      const content = JSON.parse(data.files["skills.json"].content);
-      return content.skills || [];
-    }
-  } catch (error) {
-    console.error("Erro ao carregar skills compartilhadas:", error);
-  }
-  return [];
-};
-
-// Função para salvar skills compartilhadas
-const saveSharedSkills = async (skills: Skill[]) => {
-  if (!GITHUB_TOKEN) return;
-  
-  try {
-    const content = {
-      skills: skills,
-      updatedAt: new Date().toISOString(),
-      updatedBy: user?.email || "unknown"
-    };
-    
-    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-      method: "PATCH",
-      headers: {
-        "Authorization": `Bearer ${GITHUB_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        files: {
-          "skills.json": {
-            content: JSON.stringify(content, null, 2)
-          }
-        }
-      })
-    });
-  } catch (error) {
-    console.error("Erro ao salvar skills compartilhadas:", error);
-  }
-};
-
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
 const HF_API_KEY = import.meta.env.VITE_HF_API_KEY ?? "";
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY ?? "";
 
 const TEMPLATES = {
   GERAL: `Título
@@ -447,9 +397,10 @@ export default function ValidatorPageStandalone() {
         const updatedSkills = JSON.parse(e.newValue);
         setSkills(updatedSkills);
         // Mostrar notificação visual
-        setOutputText(prev => prev + "\n\n📢 Skills atualizadas por outro usuário!");
+        const notification = "\n\n📢 Skills atualizadas por outro usuário!";
+        setOutputText(prev => prev + notification);
         setTimeout(() => {
-          setOutputText(prev => prev.replace("\n\n📢 Skills atualizadas por outro usuário!", ""));
+          setOutputText(prev => prev.replace(notification, ""));
         }, 3000);
       }
     };
@@ -464,13 +415,6 @@ export default function ValidatorPageStandalone() {
       return () => clearTimeout(timer);
     }
   }, [copied]);
-  // Adicione no header ou sidebar um badge indicando skills compartilhadas
-<div className="flex items-center gap-2 px-3 py-2 bg-blue-600/20 rounded-lg">
-  <Database size={14} className="text-blue-400" />
-  <span className="text-xs text-blue-400">
-    📚 Skills compartilhadas ({skills.length})
-  </span>
-</div>
 
   // Função para chamada única do Gemini (usada pelo processamento em partes)
   const callGeminiSingle = async (text: string, systemPrompt: string): Promise<string> => {
@@ -920,7 +864,15 @@ EXTRAIA O NOME DO DISPOSITIVO da primeira linha do texto do usuário. Exemplo: "
           {activeTab === "skills" && (
             <div className="max-w-3xl mx-auto space-y-6">
               <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
-                <h4 className="font-bold text-white mb-4">{editingSkill ? "Editar Skill" : "Nova Skill"}</h4>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-bold text-white">{editingSkill ? "Editar Skill" : "Nova Skill"}</h4>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-blue-600/20 rounded-lg">
+                    <Database size={14} className="text-blue-400" />
+                    <span className="text-xs text-blue-400">
+                      📚 Skills compartilhadas ({skills.length})
+                    </span>
+                  </div>
+                </div>
                 <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.currentTarget as HTMLFormElement); const name = String(fd.get("skill_name") || ""); const prompt = String(fd.get("skill_prompt") || ""); const category = String(fd.get("skill_category") || "GERAL") as Skill["category"]; if (!name || !prompt) return; if (editingSkill) { setSkills(skills.map((s) => s.id === editingSkill.id ? { ...s, name, prompt, category } : s)); setEditingSkill(null); } else { setSkills([...skills, { id: Date.now(), name, prompt, category }]); } e.currentTarget.reset(); }} className="space-y-3">
                   <input name="skill_name" placeholder="Nome da skill" defaultValue={editingSkill?.name ?? ""} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3" />
                   <select name="skill_category" defaultValue={editingSkill?.category ?? "GERAL"} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3"><option value="GERAL">Geral</option><option value="CADASTRO">Cadastro</option><option value="HOMOLOGACAO">Homologação</option></select>
@@ -941,6 +893,37 @@ EXTRAIA O NOME DO DISPOSITIVO da primeira linha do texto do usuário. Exemplo: "
                 ))}
               </div>
               {skills.length === 0 && <div className="text-center py-12 text-slate-600">Nenhuma skill cadastrada.</div>}
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("Resetar skills para o padrão? Isso afetará todos os usuários!")) {
+                    const defaultSkills: Skill[] = [
+                      {
+                        id: Date.now(),
+                        name: "🎯 Especialista VitePress",
+                        prompt: "Você é especialista em VitePress. Use containers: > [!NOTE], > [!TIP], > [!WARNING], > [!SUCCESS], > [!INFO]. Preserve a sintaxe exata. Sempre use '> ' antes dos colchetes.",
+                        category: "GERAL"
+                      },
+                      {
+                        id: Date.now() + 1,
+                        name: "🔌 Documentação API REST",
+                        prompt: "Você é especialista em documentação de APIs REST. Use formatação para endpoints, métodos HTTP, parâmetros, headers, exemplos.",
+                        category: "GERAL"
+                      },
+                      {
+                        id: Date.now() + 2,
+                        name: "📡 Homologação de Dispositivos",
+                        prompt: "Você é especialista em homologação de dispositivos para IXC ACS.",
+                        category: "HOMOLOGACAO"
+                      }
+                    ];
+                    setSkills(defaultSkills);
+                  }
+                }}
+                className="w-full mt-4 px-3 py-2 bg-yellow-600/20 text-yellow-400 rounded-lg text-xs font-bold hover:bg-yellow-600/30 transition"
+              >
+                🔄 Resetar Skills Padrão
+              </button>
             </div>
           )}
 
