@@ -203,6 +203,71 @@ export default function ValidatorPageStandalone() {
     }
   }, [copied]);
 
+  // Função para chamada única do Gemini (usada pelo processamento em partes)
+  const callGeminiSingle = async (text: string, systemPrompt: string): Promise<string> => {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `${systemPrompt}\n\nTEXTO DO USUÁRIO:\n${text}` }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 16384,
+            topP: 0.95,
+            topK: 40,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Sem resposta da API";
+  };
+
+  // Função para dividir texto grande em partes
+  const splitIntoChunks = (text: string, maxChunkSize: number = 8000) => {
+    const chunks: string[] = [];
+    const paragraphs = text.split('\n\n');
+    let currentChunk = '';
+    
+    for (const paragraph of paragraphs) {
+      if ((currentChunk + paragraph).length > maxChunkSize) {
+        if (currentChunk) chunks.push(currentChunk);
+        currentChunk = paragraph;
+      } else {
+        currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
+      }
+    }
+    if (currentChunk) chunks.push(currentChunk);
+    return chunks;
+  };
+
+  // Função para processar texto grande em partes
+  const processLargeText = async (fullText: string, systemPrompt: string) => {
+    const chunks = splitIntoChunks(fullText);
+    
+    if (chunks.length === 1) {
+      return await callGeminiSingle(chunks[0], systemPrompt);
+    }
+    
+    setOutputText(`📄 Texto grande detectado (${chunks.length} partes). Processando...`);
+    
+    const results: string[] = [];
+    for (let i = 0; i < chunks.length; i++) {
+      setOutputText(`🔄 Processando parte ${i + 1} de ${chunks.length}...`);
+      const result = await callGeminiSingle(chunks[i], systemPrompt);
+      results.push(`## Parte ${i + 1}/${chunks.length}\n\n${result}`);
+    }
+    
+    return results.join('\n\n---\n\n');
+  };
+
   const callGemini = async () => {
     if (!inputText) return;
     if (!API_KEY) {
@@ -246,48 +311,32 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     let usedModel = "";
 
     try {
-      // 1ª TENTATIVA: Gemini (modelo gratuito recomendado)
+      // 1ª TENTATIVA: Gemini (com suporte a documentos longos)
       usedModel = "Gemini 2.5 Flash";
-      const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `${systemPrompt}\n\nTEXTO DO USUÁRIO:\n${inputText}` }] }],
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 4096,
-            },
-          }),
-        }
-      );
-
-      if (geminiResponse.ok) {
-        const data = await geminiResponse.json();
-        resultText = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      
+      // Usar processamento em partes para documentos longos
+      resultText = await processLargeText(inputText, systemPrompt);
+      
+      if (resultText) {
+        const finalOutput = `✨ **Gerado por:** ${usedModel}\n\n${resultText}\n\n---\n🕒 ${new Date().toLocaleString('pt-BR')}`;
+        setOutputText(finalOutput);
         
-        if (resultText) {
-          const finalOutput = `✨ **Gerado por:** ${usedModel}\n\n${resultText}\n\n---\n🕒 ${new Date().toLocaleString('pt-BR')}`;
-          setOutputText(finalOutput);
-          
-          setHistory((prev) => {
-            const newHistory = [
-              { 
-                id: Date.now(), 
-                input: inputText, 
-                output: `[${usedModel}] ${resultText.substring(0, 500)}...`, 
-                type: operationType, 
-                date: new Date().toLocaleString() 
-              },
-              ...prev,
-            ];
-            return newHistory.slice(0, 50);
-          });
-          
-          setLoading(false);
-          return;
-        }
+        setHistory((prev) => {
+          const newHistory = [
+            { 
+              id: Date.now(), 
+              input: inputText.substring(0, 200) + (inputText.length > 200 ? '...' : ''), 
+              output: `[${usedModel}] ${resultText.substring(0, 500)}...`, 
+              type: operationType, 
+              date: new Date().toLocaleString() 
+            },
+            ...prev,
+          ];
+          return newHistory.slice(0, 50);
+        });
+        
+        setLoading(false);
+        return;
       }
       
       // 2ª TENTATIVA: Hugging Face (fallback quando Gemini falha ou dá 429)
@@ -295,33 +344,32 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
       setOutputText("⚠️ Gemini indisponível. Usando Hugging Face como fallback...");
       usedModel = "Hugging Face";
       
-const hfResponse = await fetch(
-  "https://api-inference.huggingface.co/models/microsoft/phi-2",  // Mais leve e rápido
-  // ou use "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta" (melhor qualidade)
-  {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${HF_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      inputs: `### System:\n${systemPrompt}\n\n### User:\n${inputText}\n\n### Assistant:\n`,
-      parameters: {
-        max_new_tokens: 1024,
-        temperature: 0.7,
-        do_sample: true,
-      },
-    }),
-  }
-);
+      const hfResponse = await fetch(
+        "https://api-inference.huggingface.co/models/microsoft/phi-2",
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${HF_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            inputs: `### System:\n${systemPrompt}\n\n### User:\n${inputText}\n\n### Assistant:\n`,
+            parameters: {
+              max_new_tokens: 2048,
+              temperature: 0.7,
+              do_sample: true,
+            },
+          }),
+        }
+      );
 
       const hfData = await hfResponse.json();
       
       if (hfResponse.ok) {
         if (Array.isArray(hfData) && hfData[0]?.generated_text) {
-          resultText = hfData[0].generated_text.split("[/INST]")[1]?.trim() || hfData[0].generated_text;
+          resultText = hfData[0].generated_text;
         } else if (hfData.generated_text) {
-          resultText = hfData.generated_text.split("[/INST]")[1]?.trim() || hfData.generated_text;
+          resultText = hfData.generated_text;
         } else {
           resultText = JSON.stringify(hfData);
         }
@@ -334,7 +382,7 @@ const hfResponse = await fetch(
             const newHistory = [
               { 
                 id: Date.now(), 
-                input: inputText, 
+                input: inputText.substring(0, 200) + (inputText.length > 200 ? '...' : ''), 
                 output: `[${usedModel}] ${resultText.substring(0, 500)}...`, 
                 type: operationType, 
                 date: new Date().toLocaleString() 
@@ -350,7 +398,7 @@ const hfResponse = await fetch(
       }
       
       // Se chegou aqui, ambos falharam
-      throw new Error("Gemini (429/erro) e Hugging Face falharam. Tente novamente em alguns instantes.");
+      throw new Error("Gemini e Hugging Face falharam. Tente novamente em alguns instantes.");
       
     } catch (error: any) {
       console.error("Erro detalhado:", error);
