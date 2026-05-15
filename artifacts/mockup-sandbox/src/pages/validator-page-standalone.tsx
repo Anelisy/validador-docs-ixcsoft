@@ -396,12 +396,7 @@ export default function ValidatorPageStandalone() {
       if (e.key === 'ixc_skills_global' && e.newValue) {
         const updatedSkills = JSON.parse(e.newValue);
         setSkills(updatedSkills);
-        // Mostrar notificação visual
-        const notification = "\n\n📢 Skills atualizadas por outro usuário!";
-        setOutputText(prev => prev + notification);
-        setTimeout(() => {
-          setOutputText(prev => prev.replace(notification, ""));
-        }, 3000);
+        // NOTIFICAÇÃO REMOVIDA - não incomoda mais
       }
     };
     
