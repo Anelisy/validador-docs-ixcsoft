@@ -246,10 +246,10 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     let usedModel = "";
 
     try {
-      // 1ª TENTATIVA: Gemini
-      usedModel = "Gemini";
+      // 1ª TENTATIVA: Gemini (modelo gratuito recomendado)
+      usedModel = "Gemini 2.5 Flash";
       const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
