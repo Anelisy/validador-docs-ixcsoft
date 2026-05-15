@@ -43,11 +43,11 @@ CONSIDERAÇÕES FINAIS
 
 Leia também
 (Destaque links para outros artigos ou documentos da central de ajuda que possuam relação ou extensão direta com o tema tratado).`,
-  CADASTRO: `Cadastro de X
+CADASTRO: `Cadastro de X
 Introdução
 Visão geral do cadastro. Objetivo e escopo do cadastro. Adicione aqui uma contextualização do assunto, detalhando brevemente a importância e a funcionalidade.
 
-[!NOTE] Acesso ao formulário
+> [!NOTE] Acesso ao formulário
 Caminho: Menu > item > formulário.
 
 Entrega de valor
@@ -69,7 +69,7 @@ Resumo do que foi descrito em toda a documentação do formulário.
 
 Leia também
 Links adicionais da central de ajuda.`,
-  HOMOLOGACAO: `---
+HOMOLOGACAO: `---
 title:
 publicado: false
 revisado: false
@@ -83,7 +83,7 @@ Modelo // substituir pelo Nome do modelo do equipamento.
 Introdução
 Modelo é um dispositivo fabricado pela/por Fabricante, projetado para oferecer funcionalidades essenciais. Este documento detalha as capacidades e limitações do dispositivo conforme testado no IXC ACS.
 
-[!INFO] Importante
+> [!INFO] Importante
 Firmware homologado:
 Hardware homologado:
 DataModel:
@@ -94,7 +94,7 @@ Funcionalidade | Gerenciável via IXC ACS | Observações
 NTP | |
 Wi-Fi | |
 
-[!NOTE] Acesso à funcionalidade
+> [!NOTE] Acesso à funcionalidade
 
 Caminho: Menu Ferramentas > Pré Configuração do dispositivo.
 
@@ -301,8 +301,19 @@ ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
     } else {
       systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress.
 
-REGRAS: Não invente seções, preserve containers VitePress, use emojis e tabelas.
-CONTAINERS: [!NOTE] ✏️ [!TIP] 🔥 [!WARNING] ⚠️ [!SUCCESS] ✅ [!INFO] ℹ️
+REGRAS: 
+1. Use a sintaxe correta do VitePress para containers: > [!NOTE] ou > [!WARNING] ou > [!TIP] ou > [!IMPORTANT] ou > [!CAUTION]
+2. Sempre inicie o container com "> " seguido do tipo entre colchetes
+3. Exemplo: > [!NOTE] Título do container
+4. Não invente seções, preserve containers VitePress, use emojis e tabelas.
+5. Use quebras de linha após os containers
+
+CONTAINERS VITEPRESS:
+> [!NOTE] - Para notas informativas
+> [!TIP] - Para dicas e sugestões
+> [!WARNING] - Para avisos importantes
+> [!IMPORTANT] - Para informações críticas
+> [!CAUTION] - Para precauções
 
 Template: ${TEMPLATES[template]}
 ${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
