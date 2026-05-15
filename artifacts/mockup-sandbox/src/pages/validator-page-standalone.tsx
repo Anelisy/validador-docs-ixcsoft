@@ -20,6 +20,55 @@ import {
 
 import { useAuth } from "@/contexts/auth-context";
 
+// Configuração para skills compartilhadas via GitHub Gist
+const GIST_ID = "seu-gist-id-aqui"; // Criar um Gist público
+const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN ?? "";
+
+// Função para carregar skills compartilhadas
+const loadSharedSkills = async (): Promise<Skill[]> => {
+  try {
+    const response = await fetch(`https://api.github.com/gists/${GIST_ID}`);
+    const data = await response.json();
+    if (data.files && data.files["skills.json"]) {
+      const content = JSON.parse(data.files["skills.json"].content);
+      return content.skills || [];
+    }
+  } catch (error) {
+    console.error("Erro ao carregar skills compartilhadas:", error);
+  }
+  return [];
+};
+
+// Função para salvar skills compartilhadas
+const saveSharedSkills = async (skills: Skill[]) => {
+  if (!GITHUB_TOKEN) return;
+  
+  try {
+    const content = {
+      skills: skills,
+      updatedAt: new Date().toISOString(),
+      updatedBy: user?.email || "unknown"
+    };
+    
+    await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": `Bearer ${GITHUB_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        files: {
+          "skills.json": {
+            content: JSON.stringify(content, null, 2)
+          }
+        }
+      })
+    });
+  } catch (error) {
+    console.error("Erro ao salvar skills compartilhadas:", error);
+  }
+};
+
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY ?? "";
 const HF_API_KEY = import.meta.env.VITE_HF_API_KEY ?? "";
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY ?? "";
@@ -43,7 +92,7 @@ CONSIDERAÇÕES FINAIS
 
 Leia também
 (Destaque links para outros artigos ou documentos da central de ajuda que possuam relação ou extensão direta com o tema tratado).`,
-CADASTRO: `Cadastro de X
+  CADASTRO: `Cadastro de X
 Introdução
 Visão geral do cadastro. Objetivo e escopo do cadastro. Adicione aqui uma contextualização do assunto, detalhando brevemente a importância e a funcionalidade.
 
@@ -69,7 +118,7 @@ Resumo do que foi descrito em toda a documentação do formulário.
 
 Leia também
 Links adicionais da central de ajuda.`,
-HOMOLOGACAO: `---
+  HOMOLOGACAO: `---
 title:
 publicado: false
 revisado: false
@@ -78,32 +127,160 @@ autor:
 revisor:
 data_revisão:
 
-Modelo // substituir pelo Nome do modelo do equipamento.
+# {{NOME_DO_DISPOSITIVO}}
 
-Introdução
-Modelo é um dispositivo fabricado pela/por Fabricante, projetado para oferecer funcionalidades essenciais. Este documento detalha as capacidades e limitações do dispositivo conforme testado no IXC ACS.
+## Introdução
+
+{{NOME_DO_DISPOSITIVO}} é um dispositivo fabricado pela/por Fabricante, projetado para oferecer funcionalidades essenciais para seus clientes. Este documento detalha as capacidades e limitações do dispositivo conforme testado e validado em nosso sistema do IXC ACS.
 
 > [!INFO] Importante
-Firmware homologado:
-Hardware homologado:
-DataModel:
+As funcionalidades descritas foram testadas e validadas na versão a seguir:
 
-// Preencher apenas com: Sim, Não ou requer verificação.
-Funcionalidade | Gerenciável via IXC ACS | Observações
---- | --- | ---
-NTP | |
-Wi-Fi | |
+- **Firmware homologado:** 
+- **Hardware homologado:** 
+- **DataModel:** 
+
+## Pré-Configuração
+
+A Pré-Configuração aplica parâmetros iniciais à rede. Confira abaixo as funcionalidades gerenciáveis via IXC ACS:
+
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+| NTP            | Requer verificação      |
+| Wi-Fi          | Requer verificação      |
 
 > [!NOTE] Acesso à funcionalidade
+**Caminho**: Menu Ferramentas > Pré Configuração do dispositivo.
 
-Caminho: Menu Ferramentas > Pré Configuração do dispositivo.
+## Ações no Dispositivo
 
-Considerações Finais
-Um breve resumo sobre tudo o que foi discutido.
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+| Sincronizar    | **Sim**                 |
+| Reiniciar      | **Não**                 |
+| Reset          | **Sim**                 |
 
-Leia Também
-Comparativo Homologações
-Guia - Termos de Homologação de Dispositivos`,
+> [!NOTE] Acesso à funcionalidade
+**Caminho:** Menu Dispositivos > Dispositivo > três pontos.
+
+## Internet
+
+### PPP
+
+| Funcionalidade                  | Gerenciável via IXC ACS |
+|--------------------------------|-------------------------|
+| Habilitar/Desabilitar Interface | **Sim**                |
+| Criar Nova Interface            | **Sim**                |
+| Deletar Interface               | **Sim**                |
+| DNS IPv4                        | **Sim**                |
+| Modo IPv6                       | **Não**                |
+| DNS IPv6                        | **Não**                |
+| MTU                             | **Sim**                |
+| Habilitar IPv6                  | **Sim**                |
+| Configuração de VLAN            | **Sim**                |
+
+### IP/DHCP
+
+| Funcionalidade                  | Gerenciável via IXC ACS |
+|--------------------------------|-------------------------|
+| Habilitar/Desabilitar Interface | **Sim**                |
+| Criar Nova Interface            | **Sim**                |
+| Deletar Interface               | **Sim**                |
+| Configurações de Conexão        | **Sim**                |
+| DNS IPv4                        | **Sim**                |
+| Modo IPv6                       | **Não**                |
+| DNS IPv6                        | **Não**                |
+| MTU                             | **Sim**                |
+| Habilitar IPv6                  | **Sim**                |
+| Configuração de VLAN            | **Sim**                |
+
+> [!NOTE] Acesso à funcionalidade
+**Caminho:** Menu Dispositivos > Dispositivo > Aba Conectividade > Internet.
+
+## LAN
+
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+| Servidor DHCP  | **Sim**                 |
+| Gateway        | **Sim**                 |
+| DNS (LAN IPv4) | **Sim**                 |
+| DNS (LAN IPv6) | **Sim**                 |
+
+> [!NOTE] Acesso à funcionalidade
+**Caminho**: Menu Dispositivos > Dispositivo > Aba Conectividade > LAN.
+
+## Interfaces Wi-Fi
+
+### 2.4GHz e 5.8GHz
+
+| Funcionalidade                  | Gerenciável via IXC ACS |
+|--------------------------------|-------------------------|
+| Habilitar/Desabilitar Interface | **Não**                |
+| SSID                            | **Sim**                |
+| Alteração de Senha              | **Sim**                |
+| Canal                           | **Sim**                |
+| Largura de Banda                | **Sim**                |
+
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+| Band Steering  | **Não**                 |
+
+> [!NOTE] Acesso à funcionalidade
+**Caminho**: Menu Ferramentas > Pré Configuração do dispositivo.
+
+## Dispositivos Conectados
+
+| Funcionalidade                    | Gerenciável via IXC ACS |
+|----------------------------------|-------------------------|
+| Status do Host                    | **Sim**                 |
+| Bloquear/Desbloquear Dispositivos | **Não**                 |
+| Topologia de Rede                 | **Sim**                 |
+
+> [!NOTE] Acesso à funcionalidade
+**Caminho**: Menu Dispositivos > Dispositivo > Aba Conectividade > Dispositivos Conectados.
+
+## Redirecionamento e Gerenciamento Web
+
+| Funcionalidade             | Gerenciável via IXC ACS |
+|----------------------------|-------------------------|
+| Acesso Remoto              | **Não**                 |
+| Porta Web                  | **Não**                 |
+| Usuário Web                | **Sim**                 |
+| Senha Web                  | **Sim**                 |
+| Redirecionamento de Portas | **Sim**                 |
+| TCP/UDP                    | **Sim**                 |
+
+### Diagnósticos
+
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+| Ping           | **Sim**                 |
+| Traceroute     | **Não**                 |
+| Redes Próximas | **Sim**                 |
+| Upload         | **Sim**                 |
+| Download       | **Não**                 |
+
+> [!NOTE] Acesso à funcionalidade
+**Caminho**: Menu Dispositivos > Dispositivo > Aba Diagnósticos.
+
+### Arquivos
+
+Na aba de Arquivos, encontram-se listados os documentos e recursos necessários para a atualização do firmware do dispositivo.
+
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+| Firmware       | Requer verificação      |
+
+> [!INFO] A comunicação com o IXC Provedor é realizada mediante o envio das informações de PPPoE, senha, SSID e sua respectiva senha.
+
+## Considerações Finais
+
+Resumo das funcionalidades testadas e validadas.
+
+## Leia Também
+
+- [[comparativo-homologacoes|Comparativo Homologações]]
+- [[guia-termos-homologacao|Guia - Termos de Homologação de Dispositivos]]`,
 };
 
 type Skill = {
@@ -182,20 +359,104 @@ export default function ValidatorPageStandalone() {
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Carregar dados iniciais (histórico + skills globais)
   useEffect(() => {
+    // Carregar histórico do usuário atual
     const savedHistory = localStorage.getItem("ixc_history");
     if (savedHistory) setHistory(JSON.parse(savedHistory));
-    const savedSkills = localStorage.getItem("ixc_skills");
-    if (savedSkills) setSkills(JSON.parse(savedSkills));
+    
+    // Carregar skills GLOBAIS (compartilhadas entre todos usuários)
+    const loadGlobalSkills = () => {
+      try {
+        // Tenta carregar do storage GLOBAL
+        const globalSkills = localStorage.getItem("ixc_skills_global");
+        if (globalSkills) {
+          const skills = JSON.parse(globalSkills);
+          setSkills(skills);
+          return;
+        }
+        
+        // Se não existir skills globais, tenta migrar do usuário atual
+        const userSkills = localStorage.getItem("ixc_skills");
+        if (userSkills) {
+          const skills = JSON.parse(userSkills);
+          setSkills(skills);
+          // Salva como global para compartilhar
+          localStorage.setItem("ixc_skills_global", JSON.stringify(skills));
+          return;
+        }
+        
+        // Skills padrão para primeiro uso (compartilhadas globalmente)
+        const defaultSkills: Skill[] = [
+          {
+            id: Date.now(),
+            name: "🎯 Especialista VitePress",
+            prompt: "Você é especialista em VitePress. Use containers: > [!NOTE], > [!TIP], > [!WARNING], > [!SUCCESS], > [!INFO]. Preserve a sintaxe exata. Sempre use '> ' antes dos colchetes.",
+            category: "GERAL"
+          },
+          {
+            id: Date.now() + 1,
+            name: "🔌 Documentação API REST",
+            prompt: "Você é especialista em documentação de APIs REST. Use formatação para endpoints, métodos HTTP (GET, POST, PUT, DELETE), parâmetros, headers, exemplos de requisição/resposta. Inclua códigos de status HTTP.",
+            category: "GERAL"
+          },
+          {
+            id: Date.now() + 2,
+            name: "📡 Homologação de Dispositivos",
+            prompt: "Você é especialista em homologação de dispositivos para IXC ACS. Foco em funcionalidades gerenciáveis via ACS, tabelas de compatibilidade, versões de firmware, hardware homologado. Use tabelas markdown e containers > [!NOTE].",
+            category: "HOMOLOGACAO"
+          },
+          {
+            id: Date.now() + 3,
+            name: "📝 Cadastro de Clientes",
+            prompt: "Você é especialista em documentação de cadastros no IXCsoft. Foco em formulários, campos obrigatórios, validações, integrações com outros módulos. Use containers > [!NOTE] para acessos.",
+            category: "CADASTRO"
+          }
+        ];
+        setSkills(defaultSkills);
+        localStorage.setItem("ixc_skills_global", JSON.stringify(defaultSkills));
+      } catch (error) {
+        console.error("Erro ao carregar skills globais:", error);
+      }
+    };
+    
+    loadGlobalSkills();
   }, []);
 
+  // Salvar histórico do usuário (mantém separado por usuário)
   useEffect(() => {
     localStorage.setItem("ixc_history", JSON.stringify(history));
   }, [history]);
 
+  // Salvar skills GLOBAIS (qualquer usuário que modificar, todos veem)
   useEffect(() => {
-    localStorage.setItem("ixc_skills", JSON.stringify(skills));
+    if (skills.length > 0) {
+      localStorage.setItem("ixc_skills_global", JSON.stringify(skills));
+      // Disparar evento para sincronizar outras abas do mesmo navegador
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'ixc_skills_global',
+        newValue: JSON.stringify(skills)
+      }));
+    }
   }, [skills]);
+
+  // Sincronizar skills entre abas (se outra aba modificar)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'ixc_skills_global' && e.newValue) {
+        const updatedSkills = JSON.parse(e.newValue);
+        setSkills(updatedSkills);
+        // Mostrar notificação visual
+        setOutputText(prev => prev + "\n\n📢 Skills atualizadas por outro usuário!");
+        setTimeout(() => {
+          setOutputText(prev => prev.replace("\n\n📢 Skills atualizadas por outro usuário!", ""));
+        }, 3000);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   useEffect(() => {
     if (copied) {
@@ -203,6 +464,13 @@ export default function ValidatorPageStandalone() {
       return () => clearTimeout(timer);
     }
   }, [copied]);
+  // Adicione no header ou sidebar um badge indicando skills compartilhadas
+<div className="flex items-center gap-2 px-3 py-2 bg-blue-600/20 rounded-lg">
+  <Database size={14} className="text-blue-400" />
+  <span className="text-xs text-blue-400">
+    📚 Skills compartilhadas ({skills.length})
+  </span>
+</div>
 
   // Função para chamada única do Gemini (usada pelo processamento em partes)
   const callGeminiSingle = async (text: string, systemPrompt: string): Promise<string> => {
@@ -284,39 +552,116 @@ export default function ValidatorPageStandalone() {
     if (operationType === "validar") {
       systemPrompt = `Você é um Analista de Documentação Técnica da IXCsoft, especialista em validar documentações para a Central de Ajuda (VitePress).
 
+REGRAS OBRIGATÓRIAS DE FORMATAÇÃO:
+1. Containers VitePress: SEMPRE iniciar com "> " antes do tipo
+   Correto: > [!NOTE] Título
+   Correto: > [!INFO] Importante
+   Correto: > [!WARNING] Atenção
+   Correto: > [!TIP] Dica
+2. Tabelas: Use | Cabeçalho | Cabeçalho |
+            |-----------|------------|
+            | Dado       | Dado       |
+3. Títulos: Use # para título principal, ## para seções
+4. Ênfase: Use **Negrito** para valores importantes (Sim, Não, OK, Sem capacidade)
+5. Nome do dispositivo: Extraia CORRETAMENTE da primeira linha do texto. Exemplo: "[Homologação] CDTC FD714GS1-R850" → título deve ser "# CDTC FD714GS1-R850"
+
 FONTES DE PESQUISA E COMPARAÇÃO:
 - Central IXC Provedor: https://central.ixcprovedor.com.br
 - Central IXC ACS: https://central-ixcacs.ixcsoft.com.br
 - Wiki ERP: https://wiki-erp.ixcsoft.com.br
 
-INSTRUÇÕES DE SAÍDA:
-📋 ANÁLISE DE CONFORMIDADE:
-📍 ONDE ALTERAR:
-🔗 LINKS DE REFERÊNCIA:
-💡 SUGESTÕES DE MELHORIA:
-❓ PERGUNTAS FAQ (5 a 10): (sem respostas)
+FORMATO DE SAÍDA OBRIGATÓRIO:
+# NOME_DO_DISPOSITIVO
 
-Template: ${TEMPLATES[template]}
-${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
+## Introdução
+
+> [!INFO] Importante
+Informações do firmware, hardware e datamodel.
+
+## Pré-Configuração
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+
+> [!NOTE] Acesso à funcionalidade
+**Caminho**: Menu Ferramentas > Pré Configuração do dispositivo.
+
+## Ações no Dispositivo
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+
+## Internet
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+
+## LAN
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+
+## Interfaces Wi-Fi
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+
+## Dispositivos Conectados
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+
+## Redirecionamento e Gerenciamento Web
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+
+## Diagnósticos
+| Funcionalidade | Gerenciável via IXC ACS |
+|----------------|-------------------------|
+
+## Considerações Finais
+
+## Leia Também
+
+Template base: ${TEMPLATES[template]}
+${selectedSkill ? `SKILL: ${selectedSkill}` : ""}
+
+IMPORTANTE: Preserve a sintaxe exata dos containers (> [!NOTE]) e use **Negrito** para Sim/Não/OK/Sem capacidade.`;
     } else {
       systemPrompt = `Você é um Gerador de Documentação Técnica IXCsoft para VitePress.
 
-REGRAS: 
-1. Use a sintaxe correta do VitePress para containers: > [!NOTE] ou > [!WARNING] ou > [!TIP] ou > [!IMPORTANT] ou > [!CAUTION]
-2. Sempre inicie o container com "> " seguido do tipo entre colchetes
-3. Exemplo: > [!NOTE] Título do container
-4. Não invente seções, preserve containers VitePress, use emojis e tabelas.
-5. Use quebras de linha após os containers
+REGRAS OBRIGATÓRIAS:
+1. Containers VitePress: SEMPRE iniciar com "> " antes do tipo
+   Correto: > [!NOTE] Título
+   Correto: > [!INFO] Importante
+   Correto: > [!WARNING] Atenção
+   Correto: > [!TIP] Dica
+   Correto: > [!CAUTION] Precaução
 
-CONTAINERS VITEPRESS:
-> [!NOTE] - Para notas informativas
-> [!TIP] - Para dicas e sugestões
-> [!WARNING] - Para avisos importantes
-> [!IMPORTANT] - Para informações críticas
-> [!CAUTION] - Para precauções
+2. Tabelas: Use formatação markdown padrão
+   | Cabeçalho 1 | Cabeçalho 2 |
+   |-------------|-------------|
+   | Dado 1      | Dado 2      |
+
+3. Títulos: 
+   # Nome do Dispositivo (extraído da primeira linha do texto do usuário)
+   ## Seção Principal
+   ### Subseção
+
+4. Ênfase: Use **Negrito** para valores como Sim, Não, OK, Sem capacidade, Funcional
+
+5. Seções obrigatórias na ordem:
+   - Introdução (com > [!INFO])
+   - Pré-Configuração (com > [!NOTE])
+   - Ações no Dispositivo
+   - Internet (subseções PPP e IP/DHCP)
+   - LAN
+   - Interfaces Wi-Fi (2.4GHz e 5.8GHz)
+   - Dispositivos Conectados
+   - Redirecionamento e Gerenciamento Web
+   - Diagnósticos
+   - Arquivos
+   - Considerações Finais
+   - Leia Também
 
 Template: ${TEMPLATES[template]}
-${selectedSkill ? `SKILL: ${selectedSkill}` : ""}`;
+${selectedSkill ? `SKILL: ${selectedSkill}` : ""}
+
+EXTRAIA O NOME DO DISPOSITIVO da primeira linha do texto do usuário. Exemplo: "[Homologação] CDTC FD714GS1-R850" → use "CDTC FD714GS1-R850" como título principal.`;
     }
 
     let resultText = "";
